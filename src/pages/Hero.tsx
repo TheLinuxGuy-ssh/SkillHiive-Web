@@ -9,8 +9,8 @@ export default function Hero() {
   const [easterVisible, setEasterVisible] = useState(false);
 
   const ctaRef = useRef<HTMLButtonElement | null>(null);
-  const logoClicks = useRef(0);
-  const logoTimer = useRef<number | null>(null);
+  // const logoClicks = useRef(0);
+  // const logoTimer = useRef<number | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {

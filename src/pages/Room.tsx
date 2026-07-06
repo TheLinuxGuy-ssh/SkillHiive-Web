@@ -780,7 +780,7 @@ function CubicleOverlay({ partnerIdentity, onEnd, colors }: { partnerIdentity: s
 // ─────────────────────────────────────────────────────────────────────────────
 // TopBar
 // ─────────────────────────────────────────────────────────────────────────────
-function TopBar({ roomName, participantCount, onParticipants, focusedIdentity, onUnfocus, colors, inCubicle, cubiclePartner, onEndCubicle, sessionPhase, sessionRemainingSeconds }: {
+function TopBar({ roomName, participantCount, onParticipants, focusedIdentity, onUnfocus, colors, sessionPhase, sessionRemainingSeconds }: {
   roomName: string; participantCount: number; onParticipants: () => void;
   focusedIdentity: string | null; onUnfocus: () => void; colors: Colors;
   inCubicle: boolean; cubiclePartner: string | null; onEndCubicle: () => void;

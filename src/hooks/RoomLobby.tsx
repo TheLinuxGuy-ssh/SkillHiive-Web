@@ -11,10 +11,10 @@ interface RoomLobbyProps {
 
 const defaultColors = {
   bg:      { canvas: "#0d0d0d" },
-  surface: { secondary: "#1c1c1c", raised: "#242424", skillhive: "#4f6ef7" },
+  surface: { secondary: "#1c1c1c", raised: "#242424", skillhive: "#fffd01" },
   text:    { primary: "#f0f0f0", secondary: "#9a9a9a", tertiary: "#555", inverse: "#0d0d0d" },
   border:  { subtle: "#2a2a2a" },
-  tint:    { accent: "#4f6ef7" },
+  tint:    { accent: "#fffd01" },
 };
 
 export function RoomLobby({ roomName, username, onJoin, onCancel }: RoomLobbyProps) {
@@ -90,14 +90,13 @@ export function RoomLobby({ roomName, username, onJoin, onCancel }: RoomLobbyPro
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: colors.bg.canvas, fontFamily: "system-ui, -apple-system, sans-serif" }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: `0.5px solid ${colors.border.subtle}`, flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "end", padding: "28px 20px", borderBottom: `0.5px solid ${colors.border.subtle}`, flexShrink: 0 }}>
         <button onClick={onCancel} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: colors.text.secondary }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
-        <span style={{ fontSize: 15, fontWeight: 600, color: colors.text.primary, flex: 1, textAlign: "center", margin: "0 12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: 15, fontWeight: 600, color: colors.text.primary, marginLeft: "auto", textAlign: "center", margin: "0 12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {roomName}
         </span>
-        <div style={{ width: 20 }} />
       </div>
 
       {/* Camera preview */}
@@ -157,7 +156,7 @@ export function RoomLobby({ roomName, username, onJoin, onCancel }: RoomLobbyPro
               ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.surface.skillhive} strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
               : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={colors.text.tertiary} strokeWidth="2"><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10"/><line x1="1" y1="1" x2="23" y2="23"/></svg>}
             <span style={{ fontSize: 13, fontWeight: 600, color: camOn ? colors.surface.skillhive : colors.text.tertiary }}>
-              {camOn ? "Camera on" : "Camera off"}
+              Camera {camOn ? "on" : "off"}
             </span>
           </button>
 
@@ -172,8 +171,8 @@ export function RoomLobby({ roomName, username, onJoin, onCancel }: RoomLobbyPro
         </p>
 
         <button onClick={() => onJoin(camOn, facing === "user")} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "16px 0", borderRadius: 14, background: colors.surface.skillhive, border: "none", cursor: "pointer" }}>
-          <span style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>Join room</span>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          <span style={{ fontSize: 16, fontWeight: 700, color: "#000" }}>Join room</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </button>
 
         <button onClick={onCancel} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, textAlign: "center" }}>

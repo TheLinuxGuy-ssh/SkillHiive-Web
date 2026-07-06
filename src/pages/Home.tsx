@@ -10,8 +10,8 @@ import { useNavigate } from "react-router"; // swap for your router
 
 const colors = {
   bg:      { muted: "#0b0c10", accentDim: "#1a1f2e", elevated: "#13141c" },
-  surface: { skillhive: "#4f6ef7" },
-  text:    { primary: "#f0f0f0", secondary: "#9a9a9a", skillhive: "#7b93ff" },
+  surface: { skillhive: "#fffd01" },
+  text:    { primary: "#f0f0f0", secondary: "#9a9a9a", skillhive: "#fffd01" },
   border:  { primary: "#2a2a2a" },
 };
 
@@ -44,19 +44,8 @@ function NewRoomModal({ open, onClose, onSubmit }: { open: boolean; onClose: () 
 
   return (
     <>
-      <style>{`
-        @keyframes sheet-up {
-          from { transform: translateY(100%); }
-          to   { transform: translateY(0); }
-        }
-        .new-room-sheet { animation: sheet-up 0.22s cubic-bezier(.4,0,.2,1); }
-      `}</style>
-      {/* Backdrop */}
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 40 }} />
-      {/* Sheet */}
-      <div className="new-room-sheet" style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50, background: colors.bg.muted, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: "8px 20px 40px", boxShadow: "0 -4px 40px rgba(0,0,0,0.5)" }}>
-        {/* Handle */}
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "#3a322c", margin: "8px auto 20px" }} />
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 40, display: "flex", justifyContent: "center", alignItems: "center", width: "100%", height: "100%" }} />
+      <div className="new-room-sheet" style={{ position: "relative", margin: "0 auto", width: 400,  zIndex: 50, background: colors.bg.muted, borderRadius: 20,  padding: "20px 20px 20px 20px", boxShadow: "0 -4px 40px rgba(0,0,0,0.5)" }}>
 
         <div style={{ fontSize: 17, fontWeight: 700, color: colors.text.primary, marginBottom: 16 }}>Name your room</div>
 
@@ -81,8 +70,6 @@ function NewRoomModal({ open, onClose, onSubmit }: { open: boolean; onClose: () 
     </>
   );
 }
-
-// ─── Spinner ─────────────────────────────────────────────────────────────────
 
 function Spinner() {
   return (
@@ -113,7 +100,7 @@ export default function Home() {
   }
 
   return (
-    <div className="mt-20" style={{ flex: 1, background: colors.bg.muted, minHeight: "100vh", fontFamily: "system-ui, -apple-system, sans-serif" }}>
+    <div className="pt-20 bg-[#0c0c0e]" style={{ flex: 1, minHeight: "100vh", fontFamily: "system-ui, -apple-system, sans-serif" }}>
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "10px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
 
         {/* Section header */}
@@ -122,7 +109,7 @@ export default function Home() {
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {rooms.length > 0 && (
-              <div style={{ padding: "4px 10px", borderRadius: 999, background: colors.surface.skillhive + "22" }}>
+              <div style={{ padding: "4px 10px", borderRadius: 999, background: colors.surface.skillhive }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: colors.text.skillhive }}>{rooms.length} live</span>
               </div>
             )}
@@ -155,9 +142,9 @@ export default function Home() {
         )}
 
         {/* Room cards */}
-        {!loading && rooms.map((room:any) => {
+        {!loading && rooms.map((room) => {
           const phase = computePhase(room.session_started_at);
-          const memberNames = room.participants.map((p: any) => p.displayname || p.username);
+          const memberNames = room.participants.map((p) => p.displayname || p.username);
 
           const sessionStartMs = room.session_started_at
             ? new Date(room.session_started_at).getTime()
@@ -186,7 +173,6 @@ export default function Home() {
         })}
       </div>
 
-      {/* New Room modal */}
       <NewRoomModal open={sheetOpen} onClose={handleCloseSheet} onSubmit={handleStartSession} />
     </div>
   );

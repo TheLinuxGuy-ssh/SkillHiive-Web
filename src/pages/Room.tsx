@@ -790,7 +790,7 @@ function TopBar({ roomName, participantCount, onParticipants, focusedIdentity, o
   const pM = Math.floor(sessionRemainingSeconds / 60), pS = sessionRemainingSeconds % 60;
 
   return (
-    <div style={{ display: "flex", alignItems: "center", padding: "11px 16px", gap: 8 }}>
+    <div style={{ display: "flex", alignItems: "center", padding: "22px 16px", gap: 8 }}>
       {/* Left */}
       <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 9, overflow: "hidden" }}>
         {focusedIdentity ? (

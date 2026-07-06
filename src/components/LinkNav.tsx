@@ -101,7 +101,7 @@ export const LinkNav = () => {
       >
         Learn
       </Tab> */}
-      <Tab
+      {/* <Tab
         index={1}
         tabRefs={tabRefs}
         setPosition={setPosition}
@@ -112,9 +112,9 @@ export const LinkNav = () => {
         isActiveByCursor={isActiveByCursor}
       >
         Feed
-      </Tab>
+      </Tab> */}
       <Tab
-        index={2}
+        index={1}
         tabRefs={tabRefs}
         setPosition={setPosition}
         position={position}

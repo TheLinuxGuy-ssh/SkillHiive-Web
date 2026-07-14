@@ -16,6 +16,8 @@ export interface ActiveRoom {
   participants: RoomParticipant[];
 }
 
+const POLL_INTERVAL = 8000;
+
 export function useActiveRooms() {
   const [rooms, setRooms] = useState<ActiveRoom[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,38 +36,30 @@ export function useActiveRooms() {
 
   useEffect(() => {
     mounted.current = true;
-
-    // unique per mount so no stale channel collision
-    const channelName = `room_participants_changes_${Date.now()}`;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
     let poll: ReturnType<typeof setInterval> | null = null;
 
+    // Polling instead of realtime: the backend's realtime WS is unreliable
+    // (same reason the feed polls), so we keep the list fresh on an interval
+    // rather than relying on a subscription that may never connect.
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted.current || !session) {
+      if (!mounted.current) return;
+      if (!session) {
         setLoading(false);
         return;
       }
-
       fetchRooms();
-
-      channel = supabase
-        .channel(channelName)
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "room_participants" },
-          () => { fetchRooms(); },
-        )
-        .subscribe((status) => {
-          if (status === "SUBSCRIBED") {
-            poll = setInterval(fetchRooms, 10000);
-          }
-        });
+      poll = setInterval(fetchRooms, POLL_INTERVAL);
     });
+
+    function onVisible() {
+      if (document.visibilityState === "visible") fetchRooms();
+    }
+    document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       mounted.current = false;
-      if (channel) supabase.removeChannel(channel);
       if (poll) clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 

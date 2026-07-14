@@ -201,6 +201,9 @@ export default function RoomScreen({
   const [livekitReady, setLivekitReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryTick, setRetryTick] = useState(0);
+  const autoRetryRef = useRef(0);
+  const retryScheduledRef = useRef(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [micEnabled, setMicEnabled] = useState(false);
   const [camEnabled, setCamEnabled] = useState(false);
@@ -240,54 +243,107 @@ export default function RoomScreen({
   }, [phaseState.phase]);
 
   // ── Init ──────────────────────────────────────────────────────────────────
+  // Wait for BOTH the lobby to be dismissed AND the profile username to be
+  // loaded before requesting a token. On a fresh session / hard reload the
+  // profile (and the auth session) rehydrate asynchronously — kicking off the
+  // token request too early was why the first join attempt silently failed.
   useEffect(() => {
     if (!lobbyDone) return;
-    init();
-  }, [lobbyDone, profile?.username]);
+    if (!profile?.username) return;
+    let cancelled = false;
 
-  async function init() {
-    try {
-      await fetchToken();
-      setLivekitReady(true);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        await fetchToken();
+        if (!cancelled) setLivekitReady(true);
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message ?? "Failed to join room");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
 
-  async function fetchToken() {
-    if (!profile?.username) {
-      return;
-    }
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lobbyDone, profile?.username, retryTick]);
 
-    let headers: Record<string, string> = {};
+  // ── Connect watchdog ────────────────────────────────────────────────────────
+  // The very first LiveKit connect after a cold page load often fails to bring
+  // up media (a manual leave + rejoin fixes it). If we haven't connected shortly
+  // after mounting the room, automatically retry once with a fresh Room instance
+  // (recreated via retryTick) before surfacing a manual retry.
+  useEffect(() => {
+    if (!livekitReady || !token) return;
+    connectedRef.current = false;
+    retryScheduledRef.current = false;
 
-    if (supabase) {
+    const t = setTimeout(() => {
+      if (connectedRef.current || retryScheduledRef.current) return;
+      if (autoRetryRef.current < 1) {
+        autoRetryRef.current += 1;
+        retryScheduledRef.current = true;
+        setToken(null);
+        setLivekitReady(false);
+        setError(null);
+        setRetryTick((x) => x + 1);
+      } else {
+        setError("Couldn't connect to the room. Please retry.");
+      }
+    }, 6000);
+
+    return () => clearTimeout(t);
+  }, [livekitReady, token, retryTick]);
+
+  // Resolve the auth session, retrying briefly since it can lag right after a
+  // hard reload (getSession returns null until storage is rehydrated).
+  async function resolveSession() {
+    if (!supabase) return null;
+    for (let i = 0; i < 6; i++) {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (session) headers["Authorization"] = `Bearer ${session.access_token}`;
+      if (session) return session;
+      await new Promise((r) => setTimeout(r, 300));
     }
+    return null;
+  }
 
-    try {
-      const params = new URLSearchParams({
-        room: roomName!,
-        username: profile.username,
-      });
+  async function fetchToken() {
+    if (!profile?.username) throw new Error("Profile not ready");
 
-      const res = await fetch(`${TOKEN_ENDPOINT}?${params.toString()}`, {
-        headers,
-      });
-      if (!res.ok) throw new Error(`Token server error: ${res.status}`);
+    const session = await resolveSession();
+    const headers: Record<string, string> = {};
+    if (session) headers["Authorization"] = `Bearer ${session.access_token}`;
 
-      const data = await res.json();
-      if (!data.token) throw new Error("No token received");
+    const params = new URLSearchParams({
+      room: roomName!,
+      username: profile.username,
+    });
 
-      setToken(data.token);
-    } catch (error) {
-      console.error("Failed to fetch token:", error);
+    // Retry the token request a few times to ride out cold-starts / transient
+    // failures instead of failing the whole join on the first hiccup.
+    let lastErr: unknown = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetch(`${TOKEN_ENDPOINT}?${params.toString()}`, {
+          headers,
+        });
+        if (!res.ok) throw new Error(`Token server error: ${res.status}`);
+        const data = await res.json();
+        if (!data.token) throw new Error("No token received");
+        setToken(data.token);
+        return;
+      } catch (err) {
+        lastErr = err;
+        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+      }
     }
+    console.error("Failed to fetch token:", lastErr);
+    throw lastErr instanceof Error ? lastErr : new Error("Failed to fetch token");
   }
 
   async function fetchCubicleToken(cubicleRoomName: string): Promise<string> {
@@ -478,6 +534,9 @@ export default function RoomScreen({
   }
 
   // ── Stable Room instance ──────────────────────────────────────────────────
+  // Recreate the Room instance on each retry. A stale/half-connected Room can
+  // fail to publish media on the very first join after a cold page load; a
+  // fresh instance (what a manual leave + rejoin produces) connects cleanly.
   const room = useMemo(() => {
     const r = new Room({
       adaptiveStream: true,
@@ -489,7 +548,8 @@ export default function RoomScreen({
     } as RoomOptions);
     roomRef.current = r;
     return r;
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retryTick]);
 
   const cubicleRoom = useMemo(() => {
     if (cubicle.status !== "active" || !cubicleToken) return null;
@@ -509,6 +569,7 @@ export default function RoomScreen({
   const handleConnected = useCallback(async () => {
     if (connectedRef.current) return;
     connectedRef.current = true;
+    autoRetryRef.current = 0;
     const r = roomRef.current;
     if (!r) return;
 
@@ -548,15 +609,28 @@ export default function RoomScreen({
     const lp = r.localParticipant;
     try {
       await lp.setMicrophoneEnabled(false);
-      if (joinWithCam) {
-        await lp.setCameraEnabled(true, {
-          facingMode: joinWithFrontCam ? "user" : "environment",
-        } as any);
-        setIsFrontCam(joinWithFrontCam);
-      } else {
-        await lp.setCameraEnabled(false);
-      }
     } catch {}
+
+    if (joinWithCam) {
+      // Retry camera acquisition once — the first getUserMedia right after a
+      // cold connect can fail/race, leaving the local video tile blank.
+      let camOk = false;
+      for (let i = 0; i < 2 && !camOk; i++) {
+        try {
+          await lp.setCameraEnabled(true, {
+            facingMode: joinWithFrontCam ? "user" : "environment",
+          } as any);
+          camOk = true;
+          setIsFrontCam(joinWithFrontCam);
+        } catch {
+          await new Promise((res) => setTimeout(res, 500));
+        }
+      }
+    } else {
+      try {
+        await lp.setCameraEnabled(false);
+      } catch {}
+    }
 
     micEnabledRef.current = lp.isMicrophoneEnabled;
     camEnabledRef.current = lp.isCameraEnabled;
@@ -566,8 +640,13 @@ export default function RoomScreen({
   }, [joinWithCam, joinWithFrontCam]);
 
   const handleDisconnected = useCallback(() => {
+    const wasConnected = connectedRef.current;
     connectedRef.current = false;
     if (intentionalLeaveRef.current) return;
+    // Never-connected disconnect = a failed initial join (or the teardown of a
+    // stale attempt during retry). Do nothing here — the connect watchdog owns
+    // the retry/error decision, which avoids races with async disconnect events.
+    if (!wasConnected) return;
     onLeave();
   }, [onLeave]);
 
@@ -733,15 +812,62 @@ export default function RoomScreen({
       <div
         style={{
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
+          gap: 18,
           height: "100vh",
           background: colors.bg.canvas,
+          padding: 24,
         }}
       >
-        <span style={{ color: colors.text.secondary, fontSize: 15 }}>
-          {error ?? "Failed to get token"}
+        <span style={{ color: colors.text.secondary, fontSize: 15, textAlign: "center" }}>
+          {error ?? "Couldn't connect to the room."}
         </span>
+        <div style={{ display: "flex", gap: 12 }}>
+          <button
+            onClick={() => {
+              autoRetryRef.current = 0;
+              retryScheduledRef.current = false;
+              setError(null);
+              setToken(null);
+              setLivekitReady(false);
+              setRetryTick((t) => t + 1);
+            }}
+            style={{
+              padding: "10px 20px",
+              borderRadius: 999,
+              border: "none",
+              background: "#fffd01",
+              color: "#0f0f12",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Retry
+          </button>
+          <button
+            onClick={() => {
+              intentionalLeaveRef.current = true;
+              onLeave();
+            }}
+            style={{
+              padding: "10px 20px",
+              borderRadius: 999,
+              border: `1px solid ${colors.border.subtle}`,
+              background: "transparent",
+              color: colors.text.secondary,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Leave
+          </button>
+        </div>
       </div>
     );
   }
@@ -755,6 +881,12 @@ export default function RoomScreen({
         room={room}
         onConnected={handleConnected}
         onDisconnected={handleDisconnected}
+        onError={(e: any) => {
+          // Let the connect watchdog own retry/error; just log here.
+          if (!connectedRef.current) {
+            console.warn("LiveKit connect error:", e?.message ?? e);
+          }
+        }}
         style={{ display: "contents" }}
       >
         <div

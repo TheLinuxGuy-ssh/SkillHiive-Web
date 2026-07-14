@@ -71,24 +71,22 @@ export function useNotifications() {
 
     void fetchRequests();
 
-    const channel = supabase
-      .channel(`notifications-allies-${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "allies",
-          filter: `receiver_id=eq.${userId}`,
-        },
-        () => {
-          void fetchRequests();
-        },
-      )
-      .subscribe();
+    // Polling instead of realtime: the backend's realtime WS is unreliable, and
+    // this hook is mounted app-wide (the top-bar bell), so a failing
+    // subscription would spam connection errors on every page. A quiet 30s poll
+    // keeps the badge fresh without the noise.
+    const poll = setInterval(() => {
+      void fetchRequests();
+    }, 30000);
+
+    function onVisible() {
+      if (document.visibilityState === "visible") void fetchRequests();
+    }
+    document.addEventListener("visibilitychange", onVisible);
 
     return () => {
-      void supabase.removeChannel(channel);
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [userId, fetchRequests]);
 

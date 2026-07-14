@@ -20,11 +20,10 @@ export default function Sign() {
     setLoading(true);
 
     try {
-      const { data, error } =
-        await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
       if (error) throw error;
 
@@ -32,11 +31,7 @@ export default function Sign() {
         navigate("/");
       }
     } catch (err) {
-      alert(
-        err instanceof Error
-          ? err.message
-          : "Failed to sign in."
-      );
+      alert(err instanceof Error ? err.message : "Failed to sign in.");
     } finally {
       setLoading(false);
     }
@@ -47,19 +42,14 @@ export default function Sign() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="mb-10 text-center">
-          <h1 className="text-4xl text-zinc-100 mb-2">
-            Sign in to SkillHive
-          </h1>
+          <h1 className="text-4xl text-zinc-100 mb-2">Sign in to SkillHive</h1>
 
           <p className="text-xs tracking-[0.3em] text-zinc-500">
             IDENTITY VERIFICATION REQUIRED
           </p>
         </div>
 
-        <form
-          onSubmit={handleLogin}
-          className="space-y-4"
-        >
+        <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-xs tracking-widest text-zinc-500 mb-2">
               EMAIL ADDRESS
@@ -70,9 +60,7 @@ export default function Sign() {
               placeholder="you@example.com"
               value={email}
               disabled={loading}
-              onChange={(e) =>
-                setEmail(e.target.value)
-              }
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full h-12 bg-zinc-950 border border-zinc-800 px-4 text-zinc-100 outline-none focus:border-lime-300"
             />
           </div>
@@ -87,9 +75,7 @@ export default function Sign() {
               placeholder="••••••••"
               value={password}
               disabled={loading}
-              onChange={(e) =>
-                setPassword(e.target.value)
-              }
+              onChange={(e) => setPassword(e.target.value)}
               className="w-full h-12 bg-zinc-950 border border-zinc-800 px-4 text-zinc-100 outline-none focus:border-lime-300"
             />
           </div>
@@ -118,7 +104,7 @@ export default function Sign() {
           </span>
 
           <Link
-            to="/sign-up"
+            to="/register"
             className="ml-2 text-xs tracking-widest text-lime-300"
           >
             REGISTER
@@ -126,8 +112,7 @@ export default function Sign() {
         </div>
 
         <p className="mt-8 text-center text-xs text-zinc-600">
-          By continuing you agree to our Terms &
-          Privacy Policy.
+          By continuing you agree to our Terms & Privacy Policy.
         </p>
       </div>
     </div>

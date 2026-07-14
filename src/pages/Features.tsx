@@ -40,7 +40,7 @@ export default function Features() {
           }
         });
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
     els.forEach((el) => observer.observe(el));
     return () => observer.disconnect();
@@ -48,12 +48,10 @@ export default function Features() {
 
   return (
     <section className="fs-root" ref={sectionRef}>
-
       <div className="fs-lede f-reveal" data-delay="0">
         <p className="section-label">Built different</p>
         <h2 className="fs-headline">
-          Most platforms want
-          your time.
+          Most platforms want your time.
           <br />
           <span className="fs-accent">We want your output.</span>
         </h2>
@@ -77,8 +75,7 @@ export default function Features() {
 
       <div className="fs-closer f-reveal" data-delay="500">
         <p className="fs-closer-text">
-          You'll understand the rest
-          once you use it.
+          You'll understand the rest once you use it.
         </p>
       </div>
 

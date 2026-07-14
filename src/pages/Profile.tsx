@@ -2,56 +2,37 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/hooks/profileContext";
-import { Edit2, LogOut, ChevronDown } from "lucide-react";
+import {
+  Pen,
+  LogOut,
+  HelpCircle,
+  ChevronDown,
+  Sun,
+  Moon,
+  Monitor,
+} from "lucide-react";
 import SwipeLayout from "@/components/SwipeLayout";
-import ActionRow from "@/components/ActionRow";
-
-// ─────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────
-
-type ProjectStatus = "active" | "completed" | "paused";
-
-type RawPost = {
-  id:             string;
-  post_type:      "project" | "media" | "offer";
-  caption:        string | null;
-  likes_count:    number;
-  comments_count: number;
-  created_at:     string;
-  profiles: { username: string | null; avatar: string | null } | null;
-  project_posts: {
-    title:       string;
-    description: string | null;
-    started_at:  string | null;
-    ended_at:    string | null;
-    status:      ProjectStatus;
-  } | null;
-  offer_posts: {
-    company:      string | null;
-    role:         string | null;
-    salary_range: string | null;
-    location:     string | null;
-    offer_type:   string | null;
-  } | null;
-  post_images: { url: string; sort_order: number }[] | null;
-};
+import { Text } from "@/components/ui";
+import { PostCard, type PostModel } from "@/components/feed/PostCards";
+import { useTokens } from "@/theme";
+import { useTheme } from "@/components/theme-provider";
 
 // ─────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────
 
 const PAGE_SIZE = 10;
-const EMBER     = "#fffd01";
 
 const FEED_QUERY = `
   id,
+  user_id,
   post_type,
   caption,
   likes_count,
   comments_count,
   created_at,
   profiles:profiles!posts_user_id_profiles_fkey (
+    id,
     username,
     avatar
   ),
@@ -75,174 +56,6 @@ const FEED_QUERY = `
   )
 `;
 
-const STATUS_CFG: Record<ProjectStatus, { label: string; color: string; dot: string }> = {
-  active:    { label: "Active",    color: "text-green-400",  dot: "bg-green-400"  },
-  completed: { label: "Completed", color: "text-indigo-400", dot: "bg-indigo-400" },
-  paused:    { label: "Paused",    color: "text-amber-400",  dot: "bg-amber-400"  },
-};
-
-const OFFER_LABELS: Record<string, string> = {
-  full_time:  "Full-time",
-  part_time:  "Part-time",
-  internship: "Internship",
-  contract:   "Contract",
-};
-
-// ─────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────
-
-function timeAgo(iso: string): string {
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60)    return `${s}s ago`;
-  if (s < 3600)  return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-}
-
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", year: "numeric" });
-}
-
-function calcDuration(s: string | null, e: string | null): string | null {
-  if (!s) return null;
-  const ms = (e ? new Date(e) : new Date()).getTime() - new Date(s).getTime();
-  const mo = Math.round(ms / (1000 * 60 * 60 * 24 * 30));
-  if (mo < 1)  return "< 1 mo";
-  if (mo < 12) return `${mo} mo`;
-  const y = Math.floor(mo / 12), r = mo % 12;
-  return r ? `${y} yr ${r} mo` : `${y} yr`;
-}
-
-function getInitials(name: string): string {
-  return name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
-}
-
-// ─────────────────────────────────────────
-// MINI COMPONENTS
-// ─────────────────────────────────────────
-
-function StatItem({ value, label, divider }: { value: number | string; label: string; divider?: boolean }) {
-  return (
-    <div className={`flex-1 flex flex-col items-center gap-0.5 ${divider ? "border-r border-white/[0.07]" : ""}`}>
-      <span className="text-lg font-black text-zinc-100 leading-none" style={{ color: EMBER }}>{value}</span>
-      <span className="text-[11px] text-zinc-500 font-medium">{label}</span>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────
-// POST CARDS (self-contained, no nav needed)
-// ─────────────────────────────────────────
-
-function ProjectPostCard({ post }: { post: RawPost }) {
-  const pp  = post.project_posts!;
-  const cfg = STATUS_CFG[pp.status];
-  const img = [...(post.post_images ?? [])].sort((a, b) => a.sort_order - b.sort_order)[0]?.url;
-  const dur = calcDuration(pp.started_at, pp.ended_at);
-  const navigate = useNavigate();
-
-  return (
-    <article className="py-6 border-b border-white/[0.06] last:border-b-0">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-[10px] font-black uppercase tracking-widest text-[#fffd01] bg-[#fffd01]/8 px-2 py-0.5 rounded-full">
-          Project
-        </span>
-        <span className="text-[11px] text-zinc-600">{timeAgo(post.created_at)}</span>
-      </div>
-
-      <h3 className="text-[16px] font-black text-zinc-100 tracking-tight leading-snug mb-2">
-        {pp.title}
-      </h3>
-
-      <div className="flex items-center gap-2 text-[11.5px] text-zinc-500 mb-3">
-        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dot}`} />
-        <span className={`font-bold ${cfg.color}`}>{cfg.label}</span>
-        {pp.started_at && (
-          <>
-            <span className="text-zinc-700">·</span>
-            <span>{fmtDate(pp.started_at)} → {pp.ended_at ? fmtDate(pp.ended_at) : "Present"}</span>
-            {dur && <><span className="text-zinc-700">·</span><span>{dur}</span></>}
-          </>
-        )}
-      </div>
-
-      {img && (
-        <div className="w-full rounded-xl overflow-hidden bg-zinc-900 mb-3">
-          <img src={img} alt={pp.title} className="w-full h-full object-fit" loading="lazy" />
-        </div>
-      )}
-
-      {pp.description && (
-        <p className="text-[13px] text-zinc-400 leading-relaxed line-clamp-3 mb-2">{pp.description}</p>
-      )}
-      {post.caption && (
-        <p className="text-[12.5px] text-zinc-600 italic">"{post.caption}"</p>
-      )}
-
-      <ActionRow
-        postId={post.id}
-        likes={post.likes_count}
-        comments={post.comments_count}
-        onCommentPress={() => navigate(`/post/${post.id}`)}
-      />
-    </article>
-  );
-}
-
-function OfferPostCard({ post }: { post: RawPost }) {
-  const op = post.offer_posts!;
-  const typeLabel = op.offer_type ? (OFFER_LABELS[op.offer_type] ?? op.offer_type) : null;
-
-  return (
-    <article className="py-6 border-b border-white/[0.06] last:border-b-0">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-[10px] font-black uppercase tracking-widest text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full">
-          Offer
-        </span>
-        <span className="text-[11px] text-zinc-600">{timeAgo(post.created_at)}</span>
-      </div>
-
-      <div className="relative rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 mb-3 overflow-hidden">
-        <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-green-400 rounded-l-xl" />
-        <div className="pl-1">
-          {op.company && (
-            <p className="text-[10px] font-black uppercase tracking-[0.08em] text-green-400 mb-1.5">{op.company}</p>
-          )}
-          <p className="text-[16px] font-black text-zinc-100 tracking-tight leading-tight mb-2">
-            {op.role ?? "Role TBD"}
-          </p>
-          <div className="flex items-center gap-2 flex-wrap">
-            {op.salary_range && <span className="text-[12px] text-zinc-400">{op.salary_range}</span>}
-            {op.salary_range && op.location && <span className="text-zinc-700">·</span>}
-            {op.location && <span className="text-[12px] text-zinc-400">{op.location}</span>}
-            {typeLabel && (
-              <span className="ml-auto text-[10px] font-bold text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full">
-                {typeLabel}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {post.caption && (
-        <p className="text-[12.5px] text-zinc-500 italic mb-2">"{post.caption}"</p>
-      )}
-
-      <div className="flex items-center gap-3 text-[12px] text-zinc-600">
-        <span>♡ {post.likes_count > 0 ? post.likes_count : "Like"}</span>
-        <span>◯ {post.comments_count > 0 ? post.comments_count : "Comment"}</span>
-      </div>
-    </article>
-  );
-}
-
-function PostCard({ post }: { post: RawPost }) {
-  if (post.post_type === "project") return <ProjectPostCard post={post} />;
-  if (post.post_type === "offer")   return <OfferPostCard   post={post} />;
-  return null;
-}
-
 // ─────────────────────────────────────────
 // PROFILE PAGE
 // ─────────────────────────────────────────
@@ -250,19 +63,21 @@ function PostCard({ post }: { post: RawPost }) {
 export default function Profile() {
   const navigate = useNavigate();
   const { profile, updateField } = useProfile();
+  const { colors, spacing, radii } = useTokens();
+  const { theme, setTheme } = useTheme();
 
-  const [allyCount,    setAllyCount]    = useState(0);
-  const [posts,        setPosts]        = useState<RawPost[]>([]);
+  const [allyCount, setAllyCount] = useState(0);
+  const [posts, setPosts] = useState<PostModel[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
-  const [hasMore,      setHasMore]      = useState(true);
-  const [cursor,       setCursor]       = useState<string | null>(null);
-  const [signingOut,   setSigningOut]   = useState(false);
-  const [uploadingAv,  setUploadingAv]  = useState(false);
-  const [uploadingBn,  setUploadingBn]  = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const [uploadingAv, setUploadingAv] = useState(false);
+  const [uploadingBn, setUploadingBn] = useState(false);
 
   const isFetchingMore = useRef(false);
-  const avInputRef     = useRef<HTMLInputElement>(null);
-  const bnInputRef     = useRef<HTMLInputElement>(null);
+  const avInputRef = useRef<HTMLInputElement>(null);
+  const bnInputRef = useRef<HTMLInputElement>(null);
 
   // ── ally count ──
   useEffect(() => {
@@ -276,26 +91,29 @@ export default function Profile() {
   }, [profile?.id]);
 
   // ── fetch posts ──
-  const fetchUserPosts = useCallback(async (isRefresh = false) => {
-    const uid = profile?.id;
-    if (!uid) return;
-    if (!isRefresh) setLoadingPosts(true);
+  const fetchUserPosts = useCallback(
+    async (isRefresh = false) => {
+      const uid = profile?.id;
+      if (!uid) return;
+      if (!isRefresh) setLoadingPosts(true);
 
-    const { data, error } = await supabase
-      .from("posts")
-      .select(FEED_QUERY)
-      .eq("user_id", uid)
-      .order("created_at", { ascending: false })
-      .limit(PAGE_SIZE)
-      .returns<RawPost[]>();
+      const { data, error } = await supabase
+        .from("posts")
+        .select(FEED_QUERY)
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(PAGE_SIZE)
+        .returns<PostModel[]>();
 
-    if (!error && data) {
-      setPosts(data);
-      setHasMore(data.length === PAGE_SIZE);
-      setCursor(data.length > 0 ? data[data.length - 1].created_at : null);
-    }
-    setLoadingPosts(false);
-  }, [profile?.id]);
+      if (!error && data) {
+        setPosts(data);
+        setHasMore(data.length === PAGE_SIZE);
+        setCursor(data.length > 0 ? data[data.length - 1].created_at : null);
+      }
+      setLoadingPosts(false);
+    },
+    [profile?.id],
+  );
 
   const fetchMore = useCallback(async () => {
     const uid = profile?.id;
@@ -309,10 +127,10 @@ export default function Profile() {
       .order("created_at", { ascending: false })
       .lt("created_at", cursor)
       .limit(PAGE_SIZE)
-      .returns<RawPost[]>();
+      .returns<PostModel[]>();
 
     if (data) {
-      setPosts(prev => [...prev, ...data]);
+      setPosts((prev) => [...prev, ...data]);
       setHasMore(data.length === PAGE_SIZE);
       setCursor(data.length > 0 ? data[data.length - 1].created_at : cursor);
     }
@@ -327,24 +145,21 @@ export default function Profile() {
   async function uploadImage(file: File, type: "avatar" | "banner") {
     const uid = profile?.id;
     if (!uid) return;
-
     type === "avatar" ? setUploadingAv(true) : setUploadingBn(true);
-
     try {
-      const ext  = file.name.split(".").pop() ?? "jpg";
+      const ext = file.name.split(".").pop() ?? "jpg";
       const path = `${uid}/${type}-${Date.now()}.${ext}`;
-
       const { data, error: uploadErr } = await supabase.storage
         .from("profile-images")
         .upload(path, file, { contentType: file.type, upsert: true });
-
       if (uploadErr) throw uploadErr;
-
       const { data: urlData } = supabase.storage
         .from("profile-images")
         .getPublicUrl(data.path);
-
-      await updateField(type === "avatar" ? "avatar" : "banner", urlData.publicUrl);
+      await updateField(
+        type === "avatar" ? "avatar" : "banner",
+        urlData.publicUrl,
+      );
     } catch (e) {
       console.error("Upload failed:", e);
     } finally {
@@ -352,13 +167,15 @@ export default function Profile() {
     }
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>, type: "avatar" | "banner") {
+  function handleFileChange(
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: "avatar" | "banner",
+  ) {
     const file = e.target.files?.[0];
     if (file) void uploadImage(file, type);
     e.target.value = "";
   }
 
-  // ── sign out ──
   async function handleSignOut() {
     setSigningOut(true);
     await supabase.auth.signOut();
@@ -366,203 +183,532 @@ export default function Profile() {
   }
 
   const displayName = profile?.displayname ?? "—";
-  const username    = profile?.username    ?? null;
-  const bio         = profile?.bio         ?? "No bio yet.";
-  const initials    = getInitials(displayName);
+  const username = profile?.username ?? null;
+  const bio = profile?.bio ?? "No bio yet.";
+
+  const R = radii.md;
+  const SURFACE = colors.surface.secondary;
+  const BORDER = colors.border.subtle;
 
   return (
     <SwipeLayout>
-    <div className="min-h-screen bg-[#0c0c0e] pb-24">
-
-      {/* hidden file inputs */}
-      <input
-        ref={bnInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={e => handleFileChange(e, "banner")}
-      />
-      <input
-        ref={avInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={e => handleFileChange(e, "avatar")}
-      />
-
-      {/* ── BANNER ── */}
       <div
-        className="relative h-44 w-full cursor-pointer overflow-hidden bg-zinc-900 group z-1"
-        onClick={() => bnInputRef.current?.click()}
+        style={{
+          minHeight: "100vh",
+          background: colors.bg.primary,
+          paddingBottom: 120,
+          fontFamily:
+            '"popreg", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+        }}
       >
-        {profile?.banner ? (
-          <img src={profile.banner} alt="Banner" className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-zinc-900 via-[#fffd01]/5 to-zinc-900" />
-        )}
-        {/* overlay */}
-        <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-colors" />
-        {/* edit badge */}
-        <div className="absolute top-3 right-3 px-2.5 py-2 rounded bg-[#fffd01]/10 border border-[#fffd01]/20 flex items-center gap-1.5">
-          {uploadingBn ? (
-            <div className="w-3 h-3 border border-[#fffd01]/40 border-t-[#fffd01] rounded-full animate-spin" />
+        {/* hidden file inputs */}
+        <input
+          ref={bnInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={(e) => handleFileChange(e, "banner")}
+        />
+        <input
+          ref={avInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          onChange={(e) => handleFileChange(e, "avatar")}
+        />
+
+        {/* ── BANNER ── */}
+        <div
+          onClick={() => bnInputRef.current?.click()}
+          style={{
+            position: "relative",
+            height: 200,
+            width: "100%",
+            cursor: "pointer",
+            overflow: "hidden",
+            background: colors.surface.secondary,
+          }}
+        >
+          {profile?.banner ? (
+            <img
+              src={profile.banner}
+              alt="Banner"
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
           ) : (
-            <Edit2 size={10} className="text-[#fffd01]" />
-          )}
-        </div>
-      </div>
-
-      {/* ── CARD ── */}
-      <div className="max-w-2xl mx-auto px-6 z-2 relative">
-        <div className="bg-[#111113] border border-white/[0.07] rounded-t-3xl -mt-6 px-6 pt-0 pb-6">
-
-          {/* avatar row */}
-          <div className="flex items-end justify-between mb-5">
             <div
-              className="relative cursor-pointer group/av -mt-10"
-              onClick={() => avInputRef.current?.click()}
+              style={{
+                width: "100%",
+                height: "100%",
+                background: `linear-gradient(135deg, ${colors.surface.secondary}, ${colors.surface.skillhive}22, ${colors.surface.secondary})`,
+              }}
+            />
+          )}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(10,10,10,0.35)",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              top: 15,
+              right: 12,
+              padding: 10,
+              borderRadius: 8,
+              background: colors.bg.accentDim,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {uploadingBn ? (
+              <MiniSpin />
+            ) : (
+              <Pen size={12} color={colors.text.skillhive} />
+            )}
+          </div>
+        </div>
+
+        {/* ── CARD ── */}
+        <div
+          style={{
+            maxWidth: 640,
+            margin: "0 auto",
+            padding: `0 ${spacing.base}px`,
+            position: "relative",
+          }}
+        >
+          <div
+            style={{
+              background: colors.bg.muted,
+              border: `1px solid ${BORDER}`,
+              borderRadius: radii.xxl,
+              marginTop: -24,
+              marginBottom: spacing.xxl,
+              padding: `0 ${spacing.lg}px ${spacing.xl}px`,
+            }}
+          >
+            {/* avatar row */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-end",
+                marginTop: -40,
+                marginBottom: spacing.base,
+              }}
             >
-              <div className="w-20 h-20 rounded-full border-[3px] border-[#0c0c0e] overflow-hidden bg-zinc-800 flex items-center justify-center">
-                {profile?.avatar ? (
-                  <img src={profile.avatar} alt={displayName} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xl font-black text-[#fffd01]">{initials}</span>
-                )}
+              <div
+                onClick={() => avInputRef.current?.click()}
+                style={{ position: "relative", cursor: "pointer" }}
+              >
+                <div
+                  style={{
+                    width: 82,
+                    height: 82,
+                    borderRadius: 41,
+                    border: `3px solid ${colors.bg.primary}`,
+                    overflow: "hidden",
+                    background: colors.surface.secondary,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {profile?.avatar ? (
+                    <img
+                      src={profile.avatar}
+                      alt={displayName}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    <Text variant="title" tone="skillhive" weight={900}>
+                      {(displayName?.[0] ?? "?").toUpperCase()}
+                    </Text>
+                  )}
+                  {uploadingAv && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        background: "rgba(0,0,0,0.5)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: 41,
+                      }}
+                    >
+                      <MiniSpin light />
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover/av:opacity-100 transition-opacity flex items-center justify-center">
-                {uploadingAv ? (
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <Edit2 size={14} className="text-white" />
-                )}
-              </div>
+
+              <button
+                onClick={() => navigate("/settings/profile")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "8px 16px",
+                  border: `1px solid ${colors.surface.skillhive}`,
+                  background: colors.bg.accentDim,
+                  color: colors.text.skillhive,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: 1.5,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  borderRadius: radii.pill,
+                }}
+              >
+                <Pen size={10} />
+                Edit Profile
+              </button>
             </div>
 
-            <button
-              onClick={() => navigate("/settings/profile")}
-              className="flex items-center mt-5 gap-1.5 px-4 py-2 border border-[#fffd01]/30 bg-[#fffd01]/5 text-[#fffd01] text-[11px] font-bold tracking-widest hover:bg-[#fffd01]/10 transition-colors"
+            {/* name + username */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                flexWrap: "wrap",
+                gap: spacing.sm,
+                marginBottom: spacing.xs,
+              }}
             >
-              <Edit2 size={10} />
-              Edit Profile
-            </button>
-          </div>
+              <Text
+                variant="headline"
+                weight={900}
+                style={{ letterSpacing: -0.5 }}
+              >
+                {displayName}
+              </Text>
+              {username && (
+                <Text
+                  tone="secondary"
+                  style={{ fontFamily: "monospace", fontSize: 13 }}
+                >
+                  [{username}]
+                </Text>
+              )}
+            </div>
 
-          {/* name + username */}
-          <div className="flex items-baseline flex-wrap gap-2 mb-2">
-            <h1 className="text-2xl font-black text-zinc-100 tracking-tight leading-none">
-              {displayName}
-            </h1>
-            {username && (
-              <span className="text-[13px] text-zinc-500 font-mono">[{username}]</span>
-            )}
-          </div>
+            {/* bio */}
+            <Text
+              variant="bodySm"
+              tone="secondary"
+              style={{ display: "block", marginBottom: spacing.lg }}
+            >
+              {bio}
+            </Text>
 
-          {/* bio */}
-          <p className="text-[13px] text-zinc-500 leading-relaxed mb-5">{bio}</p>
+            {/* stats bar */}
+            <div
+              style={{
+                display: "flex",
+                background: SURFACE,
+                border: `1px solid ${BORDER}`,
+                borderRadius: R,
+                padding: "18px 0",
+                marginBottom: spacing.xl,
+              }}
+            >
+              <StatItem value={allyCount} label="Allied With" divider />
+              <StatItem value={posts.length} label="Posts" />
+            </div>
 
-          {/* stats bar */}
-          <div className="flex bg-white/[0.03] border border-white/[0.06] rounded-xl py-4 mb-6">
-            <StatItem value={allyCount} label="Allied With" divider />
-            <StatItem value={posts.length} label="Posts" divider />
-          </div>
+            {/* ── POSTS ── */}
+            <div style={{ marginBottom: spacing.xl }}>
+              <Text
+                variant="subtitle"
+                tone="skillhive"
+                style={{
+                  display: "block",
+                  marginBottom: spacing.md,
+                  letterSpacing: 1,
+                }}
+              >
+                Posts
+              </Text>
 
-          {/* ── POSTS ── */}
-          <div className="mb-6">
-            <h2 className="text-[13px] font-bold tracking-widest uppercase mb-1" style={{ color: EMBER }}>
-              Posts
-            </h2>
-
-            {loadingPosts ? (
-              <div className="flex justify-center py-10">
-                <div className="w-4 h-4 border-2 border-white/10 border-t-[#fffd01] rounded-full animate-spin" />
-              </div>
-            ) : posts.length === 0 ? (
-              <p className="text-zinc-700 text-sm text-center py-10">No posts yet.</p>
-            ) : (
-              <>
-                <div>
-                  {posts.map(post => <PostCard key={post.id} post={post} />)}
+              {loadingPosts ? (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    padding: "40px 0",
+                  }}
+                >
+                  <MiniSpin />
                 </div>
+              ) : posts.length === 0 ? (
+                <Text
+                  align="center"
+                  tone="tertiary"
+                  style={{ display: "block", padding: "40px 0" }}
+                >
+                  No posts yet.
+                </Text>
+              ) : (
+                <>
+                  {posts.map((post) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      hideAuthor
+                      onOpen={(id) => navigate(`/post/${id}`)}
+                    />
+                  ))}
 
-                {hasMore && (
-                  <div className="flex items-center gap-4 pt-4">
-                    <div className="flex-1 h-px bg-white/[0.05]" />
-                    <button
-                      onClick={() => void fetchMore()}
-                      className="flex items-center gap-1.5 text-[12px] font-semibold text-zinc-600 hover:text-zinc-400 transition-colors"
-                    >
-                      <ChevronDown size={13} />
-                      load more
-                    </button>
-                    <div className="flex-1 h-px bg-white/[0.05]" />
-                  </div>
-                )}
+                  {hasMore &&
+                    divider(
+                      <button
+                        onClick={() => void fetchMore()}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          background: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                          color: colors.text.tertiary,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        <ChevronDown size={13} />
+                        load more
+                      </button>,
+                      colors.border.subtle,
+                      spacing.base,
+                    )}
 
-                {!hasMore && posts.length > 0 && (
-                  <div className="flex items-center gap-4 pt-4">
-                    <div className="flex-1 h-px bg-white/[0.05]" />
-                    <span className="text-[11px] text-zinc-700">all caught up</span>
-                    <div className="flex-1 h-px bg-white/[0.05]" />
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+                  {!hasMore &&
+                    posts.length > 0 &&
+                    divider(
+                      <Text variant="caption" tone="tertiary">
+                        all caught up
+                      </Text>,
+                      colors.border.subtle,
+                      spacing.base,
+                    )}
+                </>
+              )}
+            </div>
 
-          {/* ── PREFERENCES ── */}
-          <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5 flex flex-col gap-4">
-            <h2 className="text-[13px] font-bold tracking-widest uppercase" style={{ color: EMBER }}>
-              Preferences
-            </h2>
-
-            {/* theme toggle */}
-            {/* <div className="flex items-center justify-between">
-              <span className="text-[13px] text-zinc-400">Theme</span>
-              <div className="flex gap-1 bg-white/[0.04] rounded-lg p-1">
-                {([
-                  { value: "light", Icon: Sun   },
-                  { value: "dark",  Icon: Moon  },
-                  { value: "system",Icon: Monitor},
-                ] as const).map(({ value, Icon }) => (
-                  <button
-                    key={value}
-                    className="p-1.5 rounded-md text-zinc-600 hover:text-zinc-400 hover:bg-white/[0.06] transition-all"
-                    title={value}
-                  >
-                    <Icon size={13} />
-                  </button>
-                ))}
-              </div>
-            </div> */}
-
-            {/* <div className="h-px bg-white/[0.06]" /> */}
-
-            {/* help */}
-            {/* <button className="flex items-center gap-3 text-[13px] text-zinc-400 hover:text-zinc-200 transition-colors text-left">
-              <HelpCircle size={15} className="text-zinc-600" />
-              Help & Support
-            </button> */}
-
-            <div className="h-px bg-white/[0.06]" />
-
-            {/* sign out */}
-            <button
-              onClick={() => void handleSignOut()}
-              disabled={signingOut}
-              className="flex items-center gap-3 text-[13px] text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 text-left"
+            {/* ── PREFERENCES ── */}
+            <div
+              style={{
+                background: SURFACE,
+                border: `1px solid ${BORDER}`,
+                borderRadius: R,
+                padding: spacing.lg,
+                display: "flex",
+                flexDirection: "column",
+                gap: spacing.base,
+              }}
             >
-              <LogOut size={15} className="text-red-500" />
-              {signingOut ? "Signing out…" : "Sign Out"}
-            </button>
-          </div>
+              <Text
+                variant="subtitle"
+                tone="skillhive"
+                style={{ letterSpacing: 1 }}
+              >
+                Preferences
+              </Text>
 
-          {/* footer */}
-          <p className="text-center text-[9px] tracking-[3px] uppercase text-zinc-800 mt-6">
-            © SkillHiive
-          </p>
+              {/* theme toggle */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text variant="bodySm" tone="secondary">
+                  Theme
+                </Text>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 4,
+                    background: colors.overlay.press,
+                    borderRadius: 10,
+                    padding: 4,
+                  }}
+                >
+                  {(
+                    [
+                      { value: "light", Icon: Sun },
+                      { value: "dark", Icon: Moon },
+                      { value: "system", Icon: Monitor },
+                    ] as const
+                  ).map(({ value, Icon }) => (
+                    <button
+                      key={value}
+                      onClick={() => setTheme(value)}
+                      title={value}
+                      style={{
+                        padding: 8,
+                        borderRadius: 8,
+                        border: "none",
+                        cursor: "pointer",
+                        background:
+                          theme === value
+                            ? colors.surface.skillhive
+                            : "transparent",
+                        color:
+                          theme === value
+                            ? colors.text.onTint
+                            : colors.text.tertiary,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Icon size={14} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ height: 1, background: BORDER }} />
+
+              <button
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  padding: 0,
+                }}
+              >
+                <HelpCircle size={16} color={colors.text.tertiary} />
+                <Text variant="bodySm" tone="secondary">
+                  Help & Support
+                </Text>
+              </button>
+
+              <div style={{ height: 1, background: BORDER }} />
+
+              <button
+                onClick={() => void handleSignOut()}
+                disabled={signingOut}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  padding: 0,
+                  opacity: signingOut ? 0.5 : 1,
+                }}
+              >
+                <LogOut size={16} color={colors.tint.danger} />
+                <Text variant="bodySm" style={{ color: colors.tint.danger }}>
+                  {signingOut ? "Logging out…" : "Logout"}
+                </Text>
+              </button>
+            </div>
+
+            <Text
+              align="center"
+              variant="caption"
+              tone="tertiary"
+              style={{
+                display: "block",
+                marginTop: spacing.lg,
+                letterSpacing: 3,
+                textTransform: "uppercase",
+              }}
+            >
+              © SkillHiive
+            </Text>
+          </div>
         </div>
       </div>
-    </div>
     </SwipeLayout>
+  );
+}
+
+// ─────────────────────────────────────────
+// MINI COMPONENTS
+// ─────────────────────────────────────────
+
+function StatItem({
+  value,
+  label,
+  divider,
+}: {
+  value: number | string;
+  label: string;
+  divider?: boolean;
+}) {
+  const { colors } = useTokens();
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 2,
+        borderRight: divider ? `1px solid ${colors.border.subtle}` : "none",
+      }}
+    >
+      <Text
+        variant="title"
+        tone="skillhive"
+        weight={900}
+        style={{ lineHeight: "1" }}
+      >
+        {value}
+      </Text>
+      <Text variant="caption" tone="tertiary">
+        {label}
+      </Text>
+    </div>
+  );
+}
+
+function divider(label: React.ReactNode, color: string, gap: number) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap, paddingTop: 16 }}>
+      <div style={{ flex: 1, height: 1, background: color }} />
+      {label}
+      <div style={{ flex: 1, height: 1, background: color }} />
+    </div>
+  );
+}
+
+function MiniSpin({ light }: { light?: boolean }) {
+  const { colors } = useTokens();
+  return (
+    <>
+      <style>{`@keyframes prof-spin { to { transform: rotate(360deg); } }`}</style>
+      <div
+        style={{
+          width: 18,
+          height: 18,
+          border: `2px solid ${light ? "rgba(255,255,255,0.3)" : colors.border.subtle}`,
+          borderTopColor: light ? "#fff" : colors.surface.skillhive,
+          borderRadius: "50%",
+          animation: "prof-spin 0.8s linear infinite",
+        }}
+      />
+    </>
   );
 }

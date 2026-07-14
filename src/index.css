@@ -121,6 +121,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: "popreg", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
 }
 
@@ -158,7 +159,25 @@
 }
 
 .nav-block {
-  @apply bg-[#0c0f1421] border-[0.5px] border-[#242424] mx-1 rounded-2xl backdrop-blur-sm;
+  @apply mx-1 rounded-2xl backdrop-blur-sm;
+  border-width: 0.5px;
+  border-style: solid;
+  background-color: rgba(255, 255, 255, 0.62);
+  border-color: rgba(15, 15, 18, 0.12);
+}
+
+.dark .nav-block {
+  background-color: rgba(12, 15, 20, 0.13);
+  border-color: #242424;
+}
+
+/* Theme-aware page background so overscroll / uncovered areas match the theme
+   (Layout.css hardcodes a dark body background for the marketing pages). */
+html.light body {
+  background-color: #f4f4f6;
+}
+html.dark body {
+  background-color: #0a0a0a;
 }
 
 .nav-link {

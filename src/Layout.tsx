@@ -46,6 +46,14 @@ function AnimatedRoutes() {
             }
           />
           <Route
+            path="/register"
+            element={
+              <AuthGate require="guest">
+                <Page.Register />
+              </AuthGate>
+            }
+          />
+          <Route
             path="/home"
             element={
               <AuthGate require="auth">
@@ -66,6 +74,21 @@ function AnimatedRoutes() {
           <Route path="/profile" element={
             <AuthGate require="auth">
               <Page.Profile />
+            </AuthGate>
+          } />
+          <Route path="/profile/:id" element={
+            <AuthGate require="auth">
+              <Page.PublicProfile />
+            </AuthGate>
+          } />
+          <Route path="/post/:postId" element={
+            <AuthGate require="auth">
+              <Page.Post />
+            </AuthGate>
+          } />
+          <Route path="/notifications" element={
+            <AuthGate require="auth">
+              <Page.Notifications />
             </AuthGate>
           } />
           <Route

@@ -101,20 +101,22 @@ export const LinkNav = () => {
       >
         Learn
       </Tab> */}
-      {/* <Tab
-        index={1}
-        tabRefs={tabRefs}
-        setPosition={setPosition}
-        position={position}
-        to="/feed"
-        iconType="regular"
-        icon="comment"
-        isActiveByCursor={isActiveByCursor}
-      >
-        Feed
-      </Tab> */}
+      {session && (
+        <Tab
+          index={1}
+          tabRefs={tabRefs}
+          setPosition={setPosition}
+          position={position}
+          to="/feed"
+          iconType="regular"
+          icon="comment"
+          isActiveByCursor={isActiveByCursor}
+        >
+          Feed
+        </Tab>
+      )}
       <Tab
-        index={1}
+        index={2}
         tabRefs={tabRefs}
         setPosition={setPosition}
         position={position}
@@ -178,7 +180,7 @@ export const Tab = ({
       className={`nav-link group scale-[1] hover:scale-[1.075] lg:active:scale-[0.95] py-2 px-2 relative z-10 font-lg rounded-2xl flex items-center transition-ui ${
         tabRefs.current[index] && isActiveByCursor(tabRefs.current[index]!)
           ? "text-black"
-          : "text-white"
+          : "text-black dark:text-white"
       }`}
       draggable="false"
     >

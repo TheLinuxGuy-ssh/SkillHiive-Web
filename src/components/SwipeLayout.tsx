@@ -31,12 +31,10 @@ const SwipeLayout: React.FC<SwipeLayoutProps> = ({ children }) => {
         initial="initial"
         animate="animate"
         exit="exit"
-        style={{ 
-          width: '100%', 
-          minHeight: '100vh', 
-          position: 'absolute',
-          top: 0,
-          left: 0
+        style={{
+          width: '100%',
+          minHeight: '100vh',
+          position: 'relative',
         }}
       >
         {children}

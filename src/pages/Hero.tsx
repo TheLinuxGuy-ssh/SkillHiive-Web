@@ -15,27 +15,23 @@ export default function Hero() {
 
   useEffect(() => {
     // let timeout: number;
-
     // const decrementTicket = () => {
     //   setTicketCount((prev) => {
     //     if (prev <= 0) return prev;
     //     return prev - 1;
     //   });
-
     //   timeout = window.setTimeout(
     //     decrementTicket,
     //     4000 + Math.random() * 10000
     //   );
     // };
-
     // timeout = window.setTimeout(decrementTicket, 3000);
-
     // return () => clearTimeout(timeout);
   }, []);
 
   useEffect(() => {
     const revealEls = document.querySelectorAll(
-      ".reveal-text, .reveal-item, .reveal-line"
+      ".reveal-text, .reveal-item, .reveal-line",
     );
 
     const observer = new IntersectionObserver(
@@ -43,9 +39,7 @@ export default function Hero() {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             const el = entry.target as HTMLElement;
-            const delay = el.dataset.delay
-              ? parseInt(el.dataset.delay)
-              : 0;
+            const delay = el.dataset.delay ? parseInt(el.dataset.delay) : 0;
 
             setTimeout(() => {
               el.classList.add("in-view");
@@ -55,7 +49,7 @@ export default function Hero() {
           }
         });
       },
-      { threshold: 0.15 }
+      { threshold: 0.15 },
     );
 
     revealEls.forEach((el) => observer.observe(el));
@@ -140,7 +134,10 @@ export default function Hero() {
                 Without burnouts
               </p>
 
-              <div className="ticket-zone reveal-text hover:scale-[1.025] transition-ui" data-delay="700">
+              <div
+                className="ticket-zone reveal-text hover:scale-[1.025] transition-ui"
+                data-delay="700"
+              >
                 <button
                   ref={ctaRef}
                   className="cta-btn"
@@ -164,7 +161,7 @@ export default function Hero() {
             <span className="scroll-label">SCROLL</span>
           </div>
         </section>
-{/* 
+        {/* 
         <section className="artists" id="artists">
           <p className="section-label reveal-text">Featured Artists</p>
 
@@ -181,7 +178,7 @@ export default function Hero() {
             ))}
           </ul>
         </section> */}
-{/* 
+        {/* 
         <section className="manifesto">
           <blockquote className="manifesto-text reveal-text">
             “We build no stages.
@@ -193,7 +190,6 @@ export default function Hero() {
             through bodies in the dark.”
           </blockquote>
         </section> */}
-
       </main>
 
       <div className={`easter-egg ${easterVisible ? "visible" : ""}`}>
@@ -204,10 +200,7 @@ export default function Hero() {
             Use code <strong>VOID</strong> for early access.
           </p>
 
-          <button
-            className="egg-close"
-            onClick={() => setEasterVisible(false)}
-          >
+          <button className="egg-close" onClick={() => setEasterVisible(false)}>
             × close
           </button>
         </div>

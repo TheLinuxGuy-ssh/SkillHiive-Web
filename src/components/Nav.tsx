@@ -1,4 +1,5 @@
 import { LinkNav } from "./LinkNav";
+import NotificationBell from "./NotificationBell";
 
 const Nav = () => {
   return (
@@ -15,8 +16,9 @@ const Nav = () => {
                     <input type="text" value={text} onChange={(e) => setText(e.target.value)} onBlur={() => setText("")} placeholder='Explore...' className="search-box select-none w-10.25 text-transparent focus:text-white placeholder-transparent focus:placeholder-grey-100 focus:w-50 transition-ui border-1 border-white/10   outline-0 bg-white/5 hover:bg-white/15 cursor-pointer focus:bg-white/15 rounded-full px-3 py-2" />
                     <i className='fa fa-search absolute right-2.75 pointer-events-none'></i>
                 </div> */}
-        <div className="nav-center w-full flex justify-center hover:mx-2 transition-ui">
+        <div className="nav-center w-full flex justify-center items-center gap-2 transition-ui">
           <LinkNav />
+          {/* <NotificationBell /> */}
         </div>
         {/* <div className="nav-right flex justify-end items-center mx-5">
           <div className="profile-btn w-35 hover:scale-[1.05] active:scale-[1.015] transition-ui">

@@ -1,21 +1,26 @@
 import { supabase } from "@/lib/supabase";
 import { Heart, MessageCircle, Share2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useTokens } from "@/theme";
 
 export default function ActionRow({
   postId,
   likes,
   comments,
   onCommentPress,
+  noborder,
 }: {
   postId: string;
   likes: number;
   comments: number;
   onCommentPress?: (id: string) => void;
+  noborder?: boolean;
 }) {
-  const [liked,     setLiked]     = useState(false);
+  const { colors, spacing } = useTokens();
+  const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(likes);
-  const [loading,   setLoading]   = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [hover, setHover] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,7 +39,8 @@ export default function ActionRow({
     return () => { cancelled = true; };
   }, [postId]);
 
-  const handleLike = useCallback(async () => {
+  const handleLike = useCallback(async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     if (loading) return;
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -55,37 +61,81 @@ export default function ActionRow({
     setLoading(false);
   }, [liked, loading, postId]);
 
+  const pill = (active: boolean, key: string): React.CSSProperties => ({
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "6px 10px",
+    borderRadius: 999,
+    fontSize: 13,
+    fontWeight: active ? 600 : 400,
+    border: "none",
+    cursor: "pointer",
+    color: active ? "#ef4444" : colors.text.tertiary,
+    background:
+      hover === key
+        ? active
+          ? "rgba(239,68,68,0.15)"
+          : colors.surface.secondary
+        : active
+          ? "rgba(239,68,68,0.10)"
+          : "transparent",
+    transition: "background 0.15s, color 0.15s",
+    fontFamily: "inherit",
+  });
+
   return (
-    <div className="flex items-center gap-1 px-5 py-3 border-t border-white/[0.06]">
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        padding: `${spacing.sm}px ${spacing.base}px`,
+        borderTop: noborder ? "none" : `1px solid ${colors.border.subtle}`,
+      }}
+    >
       <button
         onClick={handleLike}
         disabled={loading}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-150
-          ${liked
-            ? "bg-red-500/10 text-red-400"
-            : "text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-300"
-          } disabled:opacity-50`}
+        onMouseEnter={() => setHover("like")}
+        onMouseLeave={() => setHover(null)}
+        style={{ ...pill(liked, "like"), opacity: loading ? 0.5 : 1 }}
       >
-        <Heart
-          size={14}
-          fill={liked ? "currentColor" : "none"}
-          className={liked ? "scale-110" : ""}
-        />
+        <Heart size={16} fill={liked ? "#ef4444" : "none"} />
         <span>{likeCount > 0 ? likeCount : "Like"}</span>
       </button>
 
       <button
-        onClick={() => onCommentPress?.(postId)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-300 transition-all duration-150"
+        onClick={(e) => { e.stopPropagation(); onCommentPress?.(postId); }}
+        onMouseEnter={() => setHover("comment")}
+        onMouseLeave={() => setHover(null)}
+        style={pill(false, "comment")}
       >
-        <MessageCircle size={14} />
+        <MessageCircle size={16} />
         <span>{comments > 0 ? comments : "Comment"}</span>
       </button>
 
-      <div className="flex-1" />
+      <div style={{ flex: 1 }} />
 
-      <button className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-600 hover:text-zinc-400 hover:bg-white/[0.05] transition-all duration-150">
-        <Share2 size={13} />
+      <button
+        onClick={(e) => e.stopPropagation()}
+        onMouseEnter={() => setHover("share")}
+        onMouseLeave={() => setHover(null)}
+        style={{
+          width: 30,
+          height: 30,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: 8,
+          border: "none",
+          cursor: "pointer",
+          color: colors.text.tertiary,
+          background: hover === "share" ? colors.surface.secondary : "transparent",
+          transition: "background 0.15s",
+        }}
+      >
+        <Share2 size={14} />
       </button>
     </div>
   );

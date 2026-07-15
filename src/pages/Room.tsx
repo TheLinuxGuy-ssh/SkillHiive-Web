@@ -43,12 +43,6 @@ type CubicleState =
 
 type SessionPhase = "waiting" | "focus" | "break";
 
-interface PhaseState {
-  phase: SessionPhase;
-  remainingSeconds: number;
-  micAllowed: boolean;
-}
-
 interface Colors {
   bg: { canvas: string; muted: string; accentDim: string };
   surface: {

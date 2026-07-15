@@ -42,6 +42,7 @@ Clone the repository and install dependencies with your preferred package manage
 ```bash
 git clone https://github.com/SkillHiive/web.git
 cd web
+cp .env.example .env.local
 npm install
 ```
 

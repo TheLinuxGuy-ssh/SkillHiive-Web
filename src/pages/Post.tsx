@@ -15,7 +15,6 @@ import { useProfile } from "@/hooks/profileContext";
 import { useTokens } from "@/theme";
 import { Text, Avatar, IconButton } from "@/components/ui";
 import ActionRow from "@/components/ActionRow";
-import { Button } from "@/components/ui";
 
 // ─────────────────────────────────────────
 // TYPES
@@ -445,12 +444,12 @@ export default function Post() {
   const topLevel = comments.filter((c) => !c.parent_id);
   const replies = comments.filter((c) => !!c.parent_id);
 
-  const headerTitle =
-    post.post_type === "project" && pp
-      ? pp.title
-      : post.post_type === "offer" && op
-        ? (op.role ?? "Offer")
-        : "Post";
+  // const headerTitle =
+  //   post.post_type === "project" && pp
+  //     ? pp.title
+  //     : post.post_type === "offer" && op
+  //       ? (op.role ?? "Offer")
+  //       : "Post";
 
   const editField: React.CSSProperties = {
     width: "100%",

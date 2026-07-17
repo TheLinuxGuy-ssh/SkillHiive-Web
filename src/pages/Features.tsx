@@ -73,11 +73,7 @@ export default function Features() {
         ))}
       </div>
 
-      <div className="fs-closer f-reveal" data-delay="500">
-        <p className="fs-closer-text">
-          You'll understand the rest once you use it.
-        </p>
-      </div>
+      
 
       <style>{`
         .f-reveal {

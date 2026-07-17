@@ -337,7 +337,7 @@ export function OpenSource() {
         padding: `${spacing.giant}px ${spacing.xl}px`,
       }}
     >
-      <div style={{ maxWidth: 1040, margin: "0 auto" }}>
+      <div style={{ maxWidth: 1240, margin: "0 auto" }}>
         {/* Eyebrow */}
         <div
           style={{
@@ -682,13 +682,13 @@ export function OpenSource() {
                     display: "flex",
                     alignItems: "center",
                     gap: spacing.md,
-                    marginTop: spacing.md,
                     flexWrap: "wrap",
                   }}
+                  className="mt-5"
                 >
                   {repo.language && (
                     <div
-                      style={{ display: "flex", alignItems: "center", gap: 5 }}
+                      style={{ display: "flex", alignItems: "end", gap: 5 }}
                     >
                       <span
                         style={{
@@ -928,6 +928,11 @@ export function OpenSource() {
             </div>
           </div>
         </div>
+      </div>
+      <div className="flex justify-center my-40">
+        <p className="fs-closer-text">
+          You'll understand the rest once you use it.
+        </p>
       </div>
     </section>
   );

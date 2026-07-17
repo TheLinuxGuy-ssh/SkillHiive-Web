@@ -1,7 +1,7 @@
 // utils/sessionPhase.ts
 
-export const FOCUS_MS = 1 * 60 * 1000; // 50 min
-export const BREAK_MS = 1 * 60 * 1000; // 10 min
+export const FOCUS_MS = 50 * 60 * 1000; // 50 min
+export const BREAK_MS = 10 * 60 * 1000; // 10 min
 export const CYCLE_MS = FOCUS_MS + BREAK_MS;
 
 export type SessionPhase = "waiting" | "focus" | "break";

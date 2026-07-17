@@ -1,8 +1,11 @@
 import { useState, useCallback, type ReactNode } from "react";
 import { Link } from "react-router";
 import { supabase } from "@/lib/supabase";
+import { useTokens } from "@/theme";
+import { Text } from "@/components/ui";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+/* ---------------------------------- Types --------------------------------- */
+
 type FieldId = "displayName" | "username" | "email" | "password" | "confirm";
 
 interface FormValues {
@@ -21,7 +24,10 @@ export interface SignUpScreenProps {
   onSubmit?: (values: FormValues) => Promise<void>;
 }
 
-// ─── Validation ───────────────────────────────────────────────────────────────
+type Tokens = ReturnType<typeof useTokens>;
+
+/* -------------------------------- Validation ------------------------------- */
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function validateField(id: FieldId, values: FormValues): string | null {
@@ -57,21 +63,6 @@ function passwordScore(pw: string): number {
   return s;
 }
 
-// score -> tailwind classes (avoids interpolated arbitrary values so Tailwind's
-// JIT scanner can always find the full class names in source)
-const PW_BAR_ACTIVE_CLASS: Record<number, string> = {
-  1: "bg-[#ef4444]",
-  2: "bg-[#E8FF47]",
-  3: "bg-[#5a9e3a]",
-  4: "bg-[#5a9e3a]",
-};
-const PW_LABEL_CLASS: Record<number, string> = {
-  0: "text-[#444442]",
-  1: "text-[#ef4444]",
-  2: "text-[#E8FF47]",
-  3: "text-[#5a9e3a]",
-  4: "text-[#5a9e3a]",
-};
 const PW_LABEL_TEXT: Record<number, string> = {
   0: "",
   1: "Weak",
@@ -80,43 +71,65 @@ const PW_LABEL_TEXT: Record<number, string> = {
   4: "Strong",
 };
 
-// ─── Progress bar ─────────────────────────────────────────────────────────────
-interface ProgressBarProps {
-  step: number;
-}
+const monoFont =
+  'ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace';
 
-function ProgressBar({ step }: ProgressBarProps) {
+/* -------------------------------- Progress bar ------------------------------ */
+
+function ProgressBar({ step, colors }: { step: number; colors: Tokens["colors"] }) {
   const steps = ["IDENTITY", "CREDENTIALS", "CONFIRM"] as const;
   return (
-    <div className="flex items-center gap-1.5 px-6 pb-3.5">
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
       {steps.map((label, i) => {
         const num = i + 1;
         const done = step > num;
         const active = step === num;
-        const circleClass = done
-          ? "border-[#E8FF47] bg-[#E8FF47] text-black"
-          : active
-            ? "border-[#E8FF47] bg-transparent text-[#E8FF47]"
-            : "border-[#2A2A28] bg-transparent text-[#666664]";
+        const circleColor = done || active ? colors.surface.skillhive : colors.border.subtle;
         return (
           <div
             key={label}
-            className={`flex items-center gap-1.5 ${i < steps.length - 1 ? "flex-1" : ""}`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              flex: i < steps.length - 1 ? 1 : "none",
+            }}
           >
             <div
-              className={`w-5 h-5 rounded-full border flex items-center justify-center text-[8px] transition-all duration-200 shrink-0 ${circleClass}`}
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                border: `1px solid ${circleColor}`,
+                background: done ? colors.surface.skillhive : "transparent",
+                color: done
+                  ? colors.text.onTint
+                  : active
+                    ? colors.surface.skillhive
+                    : colors.text.tertiary,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 8,
+                fontFamily: monoFont,
+                flexShrink: 0,
+                transition: "all 180ms ease",
+              }}
             >
               {done ? "✓" : num}
             </div>
             <span
-              className={`text-[8px] tracking-[1.5px] transition-colors duration-200 ${
-                active || done ? "text-[#888886]" : "text-[#444442]"
-              }`}
+              style={{
+                fontSize: 8,
+                letterSpacing: 1.5,
+                fontFamily: monoFont,
+                color: active || done ? colors.text.secondary : colors.text.tertiary,
+              }}
             >
               {label}
             </span>
             {i < steps.length - 1 && (
-              <div className="flex-1 h-px bg-[#1E1E1C] mx-1" />
+              <div style={{ flex: 1, height: 1, background: colors.border.subtle, margin: "0 4px" }} />
             )}
           </div>
         );
@@ -125,7 +138,8 @@ function ProgressBar({ step }: ProgressBarProps) {
   );
 }
 
-// ─── Field ────────────────────────────────────────────────────────────────────
+/* ----------------------------------- Field ---------------------------------- */
+
 interface FieldProps {
   id: FieldId;
   label: string;
@@ -142,6 +156,8 @@ interface FieldProps {
   showEye?: boolean;
   onToggleEye?: () => void;
   children?: ReactNode;
+  colors: Tokens["colors"];
+  radii: Tokens["radii"];
 }
 
 function Field({
@@ -160,24 +176,22 @@ function Field({
   showEye,
   onToggleEye,
   children,
+  colors,
+  radii,
 }: FieldProps) {
   const [focused, setFocused] = useState(false);
 
-  const borderClass =
+  const borderColor =
     error && touched
-      ? "border-[#ef4444]"
+      ? colors.tint.danger
       : isValid && touched
-        ? "border-[#3a6e28]"
+        ? colors.tint.success
         : focused
-          ? "border-[#E8FF47]"
-          : "border-[#2A2A28]";
+          ? colors.surface.skillhive
+          : colors.border.subtle;
 
-  const labelColorClass =
-    error && touched
-      ? "text-[#ef4444]"
-      : focused
-        ? "text-[#888886]"
-        : "text-[#666664]";
+  const labelColor =
+    error && touched ? colors.tint.danger : focused ? colors.text.secondary : colors.text.tertiary;
 
   const autoComplete =
     id === "password" || id === "confirm"
@@ -192,15 +206,29 @@ function Field({
     <div>
       <label
         htmlFor={id}
-        className={`text-[9px] tracking-[1.8px] mb-[5px] block ${labelColorClass}`}
+        style={{
+          fontSize: 9,
+          letterSpacing: 1.8,
+          marginBottom: 5,
+          display: "block",
+          fontFamily: monoFont,
+          color: labelColor,
+        }}
       >
         {label}
       </label>
 
       <div
-        className={`h-12 rounded-[2px] flex items-center px-3 border transition-colors duration-[180ms] ${borderClass} ${
-          focused ? "bg-[#0D0D0B]" : "bg-[#0C0C0C]"
-        }`}
+        style={{
+          height: 48,
+          borderRadius: radii.sm ?? radii.md,
+          display: "flex",
+          alignItems: "center",
+          padding: "0 12px",
+          border: `1px solid ${borderColor}`,
+          background: focused ? colors.surface.secondary : colors.surface.primary,
+          transition: "border-color 180ms ease, background 180ms ease",
+        }}
       >
         <input
           id={id}
@@ -214,10 +242,30 @@ function Field({
             setFocused(false);
             onBlur?.();
           }}
-          className="flex-1 bg-transparent border-none outline-none text-[#F0F0EE] font-mono text-[11px] tracking-[0.4px] h-full placeholder:text-[#2E2E2C]"
+          style={{
+            flex: 1,
+            background: "transparent",
+            border: "none",
+            outline: "none",
+            color: colors.text.primary,
+            fontFamily: monoFont,
+            fontSize: 11,
+            letterSpacing: 0.4,
+            height: "100%",
+          }}
         />
         {tag && (
-          <span className="text-[7px] tracking-[1px] text-[#2E2E2C] shrink-0 ml-1.5">
+          <span
+            style={{
+              fontSize: 7,
+              letterSpacing: 1,
+              color: colors.text.tertiary,
+              opacity: 0.6,
+              flexShrink: 0,
+              marginLeft: 6,
+              fontFamily: monoFont,
+            }}
+          >
             {tag}
           </span>
         )}
@@ -226,48 +274,79 @@ function Field({
             type="button"
             onClick={onToggleEye}
             aria-label="Toggle password visibility"
-            className="bg-transparent border-none cursor-pointer py-0.5 pl-1.5 text-[#666664] flex items-center text-sm transition-colors duration-150 outline-none hover:text-[#888886]"
+            className="transition-ui hover:!text-white"
+            style={{
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              padding: "2px 0 2px 6px",
+              color: colors.text.tertiary,
+              display: "flex",
+              alignItems: "center",
+              fontSize: 14,
+            }}
           >
             {showEye ? "○" : "●"}
           </button>
         ) : (
           isValid &&
           touched && (
-            <span className="text-[11px] text-[#5a9e3a] ml-1.5 transition-opacity duration-200">
-              ✓
-            </span>
+            <span style={{ fontSize: 11, color: colors.tint.success, marginLeft: 6 }}>✓</span>
           )
         )}
       </div>
 
       {children}
-      <div className="text-[9px] tracking-[0.3px] text-[#ef4444] min-h-[14px] leading-[14px] mt-[3px]">
+      <div
+        style={{
+          fontSize: 9,
+          letterSpacing: 0.3,
+          color: colors.tint.danger,
+          minHeight: 14,
+          lineHeight: "14px",
+          marginTop: 3,
+          fontFamily: monoFont,
+        }}
+      >
         {error && touched ? error : ""}
       </div>
     </div>
   );
 }
 
-// ─── Password strength meter ──────────────────────────────────────────────────
-interface PwMeterProps {
-  password: string;
-}
+/* ------------------------------ Password meter ------------------------------ */
 
-function PwMeter({ password }: PwMeterProps) {
+function PwMeter({ password, colors }: { password: string; colors: Tokens["colors"] }) {
   const score = passwordScore(password);
   if (!password) return null;
+
+  const barColor =
+    score <= 1 ? colors.tint.danger : score === 2 ? colors.surface.skillhive : colors.tint.success;
+  const labelColor = score === 0 ? colors.text.tertiary : barColor;
+
   return (
-    <div className="flex gap-[3px] items-center mt-[5px]">
+    <div style={{ display: "flex", gap: 3, alignItems: "center", marginTop: 5 }}>
       {([1, 2, 3, 4] as const).map((i) => (
         <div
           key={i}
-          className={`flex-1 h-[2px] rounded-[1px] transition-colors duration-300 ${
-            i <= score ? PW_BAR_ACTIVE_CLASS[score] : "bg-[#1E1E1C]"
-          }`}
+          style={{
+            flex: 1,
+            height: 2,
+            borderRadius: 1,
+            background: i <= score ? barColor : colors.border.subtle,
+            transition: "background 300ms ease",
+          }}
         />
       ))}
       <span
-        className={`text-[8px] tracking-[1px] min-w-[38px] text-right transition-colors duration-200 ${PW_LABEL_CLASS[score]}`}
+        style={{
+          fontSize: 8,
+          letterSpacing: 1,
+          minWidth: 38,
+          textAlign: "right",
+          color: labelColor,
+          fontFamily: monoFont,
+        }}
       >
         {PW_LABEL_TEXT[score]}
       </span>
@@ -275,12 +354,9 @@ function PwMeter({ password }: PwMeterProps) {
   );
 }
 
-// ─── Back button ──────────────────────────────────────────────────────────────
-interface BackButtonProps {
-  onClick?: () => void;
-}
+/* -------------------------------- Back button -------------------------------- */
 
-function BackButton({ onClick }: BackButtonProps) {
+function BackButton({ onClick, colors, radii }: { onClick?: () => void; colors: Tokens["colors"]; radii: Tokens["radii"] }) {
   const [hovered, setHovered] = useState(false);
   return (
     <button
@@ -289,14 +365,25 @@ function BackButton({ onClick }: BackButtonProps) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       aria-label="Go back"
-      className={`w-[34px] h-[34px] border rounded-[2px] bg-transparent cursor-pointer flex items-center justify-center shrink-0 outline-none transition-all duration-150 ${
-        hovered ? "border-[#E8FF47] scale-95" : "border-[#2A2A28] scale-100"
-      }`}
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: radii.sm ?? radii.md,
+        border: `1px solid ${hovered ? colors.surface.skillhive : colors.border.subtle}`,
+        background: "transparent",
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+        transform: hovered ? "scale(0.95)" : "scale(1)",
+        transition: "all 150ms ease",
+      }}
     >
       <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
         <path
           d="M8 2L3 6.5L8 11"
-          stroke="#888886"
+          stroke={colors.text.secondary}
           strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -306,93 +393,124 @@ function BackButton({ onClick }: BackButtonProps) {
   );
 }
 
-// ─── Submit button ────────────────────────────────────────────────────────────
-interface SubmitButtonProps {
+/* -------------------------------- Submit button ------------------------------- */
+
+function SubmitButton({
+  loading,
+  onClick,
+  colors,
+  radii,
+}: {
   loading: boolean;
   onClick: () => void;
-}
-
-function SubmitButton({ loading, onClick }: SubmitButtonProps) {
-  const [hovered, setHovered] = useState(false);
+  colors: Tokens["colors"];
+  radii: Tokens["radii"];
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={loading}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className={`w-full h-[50px] border border-[#E8FF47] rounded-[2px] flex items-center justify-center gap-2 font-mono outline-none transition-all duration-150 ${
-        hovered && !loading
-          ? "bg-[rgba(232,255,71,0.14)]"
-          : "bg-[rgba(232,255,71,0.07)]"
-      } ${loading ? "opacity-70 cursor-not-allowed" : "opacity-100 cursor-pointer"}`}
+      className="transition-ui hover:scale-[1.01] active:scale-[0.99]"
+      style={{
+        width: "100%",
+        height: 50,
+        borderRadius: radii.md,
+        border: `1px solid ${colors.surface.skillhive}`,
+        background: loading ? "transparent" : colors.surface.skillhive,
+        color: loading ? colors.surface.skillhive : colors.text.onTint,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        fontFamily: monoFont,
+        cursor: loading ? "default" : "pointer",
+        opacity: loading ? 0.85 : 1,
+      }}
     >
       {loading ? (
-        <div className="w-4 h-4 border-2 border-[rgba(232,255,71,0.3)] border-t-[#E8FF47] rounded-full animate-spin" />
+        <div
+          style={{
+            width: 16,
+            height: 16,
+            borderRadius: "50%",
+            border: `2px solid ${colors.text.onTint}55`,
+            borderTopColor: colors.text.onTint,
+            animation: "skillhive-spin 700ms linear infinite",
+          }}
+        />
       ) : (
-        <>
-          <span className="text-lg text-[#E8FF47] opacity-40 leading-none">
-            [
-          </span>
-          <span className="text-[11px] font-bold text-[#E8FF47] tracking-[3px]">
-            Create account
-          </span>
-          <div className="flex items-center">
-            <div className="w-3.5 h-px bg-[#E8FF47] opacity-50" />
-            <div
-              className="w-0 h-0 opacity-50"
-              style={{
-                borderTop: "3px solid transparent",
-                borderBottom: "3px solid transparent",
-                borderLeft: "5px solid #E8FF47",
-              }}
-            />
-          </div>
-          <span className="text-lg text-[#E8FF47] opacity-40 leading-none">
-            ]
-          </span>
-        </>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: 3,
+            textTransform: "uppercase",
+          }}
+        >
+          Create account
+        </span>
       )}
     </button>
   );
 }
 
-// ─── Success screen ───────────────────────────────────────────────────────────
-interface SuccessScreenProps {
-  email: string;
-}
+/* -------------------------------- Success screen ------------------------------ */
 
-function SuccessScreen({ email }: SuccessScreenProps) {
+function SuccessScreen({ email, colors }: { email: string; colors: Tokens["colors"] }) {
   return (
-    <div className="flex flex-col items-center justify-center px-8 py-[52px] text-center gap-3.5">
-      <div className="w-14 h-14 border border-[#E8FF47] rounded-full flex items-center justify-center text-[#E8FF47] text-[22px]">
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        gap: 14,
+        minHeight: "60vh",
+        padding: "0 32px",
+      }}
+    >
+      <div
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: "50%",
+          border: `1px solid ${colors.surface.skillhive}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: colors.surface.skillhive,
+          fontSize: 22,
+        }}
+      >
         ✉
       </div>
-      <div className="font-['Bebas_Neue',sans-serif] text-[26px] text-[#F0F0EE] tracking-[1px]">
+      <Text as="h2" variant="headline" style={{ color: colors.text.primary }}>
         Check your inbox
-      </div>
-      <div className="text-[10px] tracking-[0.8px] text-[#666664] leading-[1.9]">
+      </Text>
+      <Text
+        variant="bodySm"
+        style={{ color: colors.text.tertiary, lineHeight: 1.9, fontFamily: monoFont, fontSize: 10 }}
+      >
         A confirmation link was sent to
         <br />
-        <span className="text-[#E8FF47]">{email}</span>
+        <span style={{ color: colors.surface.skillhive }}>{email}</span>
         <br />
         <br />
         VERIFY YOUR ADDRESS TO ACTIVATE YOUR ACCOUNT
-      </div>
+      </Text>
     </div>
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
-const ALL_FIELDS: FieldId[] = [
-  "displayName",
-  "username",
-  "email",
-  "password",
-  "confirm",
-];
+/* ---------------------------------- Main ------------------------------------ */
+
+const ALL_FIELDS: FieldId[] = ["displayName", "username", "email", "password", "confirm"];
 
 export default function SignUpScreen({ onBack, onSubmit }: SignUpScreenProps) {
+  const { colors, spacing, radii, typography } = useTokens();
+
   const [values, setValues] = useState<FormValues>({
     displayName: "",
     username: "",
@@ -423,15 +541,21 @@ export default function SignUpScreen({ onBack, onSubmit }: SignUpScreenProps) {
   const fieldIsValid = (id: FieldId) => !errors[id];
 
   const step1Done = fieldIsValid("displayName") && fieldIsValid("username");
-  const step2Done =
-    step1Done && fieldIsValid("email") && fieldIsValid("password");
+  const step2Done = step1Done && fieldIsValid("email") && fieldIsValid("password");
   const step3Done = step2Done && fieldIsValid("confirm");
   const progressStep = step3Done ? 4 : step2Done ? 3 : step1Done ? 2 : 1;
 
+  const sectionLabel: React.CSSProperties = {
+    fontSize: typography.label.size,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: colors.text.tertiary,
+    fontWeight: typography.label.weight,
+    fontFamily: monoFont,
+  };
+
   const handleSubmit = useCallback(async () => {
-    setTouched(
-      Object.fromEntries(ALL_FIELDS.map((f) => [f, true])) as TouchedMap,
-    );
+    setTouched(Object.fromEntries(ALL_FIELDS.map((f) => [f, true])) as TouchedMap);
     if (ALL_FIELDS.some((id) => validateField(id, values))) return;
 
     setLoading(true);
@@ -442,8 +566,6 @@ export default function SignUpScreen({ onBack, onSubmit }: SignUpScreenProps) {
         await onSubmit(values);
         setSubmitted(true);
       } else {
-        // Same transaction as the mobile app: create the auth user (carrying
-        // username + displayname as metadata), then insert the profile row.
         const { data, error } = await supabase.auth.signUp({
           email: values.email.trim(),
           password: values.password,
@@ -464,197 +586,315 @@ export default function SignUpScreen({ onBack, onSubmit }: SignUpScreenProps) {
           avatar: null,
           created_at: new Date().toISOString(),
         });
-        // A DB trigger may already create the profile from metadata; ignore a
-        // duplicate/insert error rather than failing the whole signup.
         if (profileError) console.warn(profileError.message);
 
-        // If email confirmation is disabled, signUp returns a session and the
-        // guest AuthGate redirects to /home automatically. Otherwise, show the
-        // "confirm your email" screen.
         if (!data.session) setSubmitted(true);
       }
     } catch (err) {
-      setSubmitErr(
-        err instanceof Error ? err.message : "Something went wrong. Try again.",
-      );
+      setSubmitErr(err instanceof Error ? err.message : "Something went wrong. Try again.");
     } finally {
       setLoading(false);
     }
   }, [values, onSubmit]);
 
-  if (submitted) {
-    return (
-      <div className="bg-black font-mono rounded-xl overflow-hidden max-w-[660px] mx-auto min-h-[520px]">
-        <SuccessScreen email={values.email.trim()} />
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-black font-mono rounded-xl overflow-hidden max-w-[660px] mx-auto min-h-[520px] fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+    <div
+      style={{
+        minHeight: "100vh",
+        width: "100%",
+        display: "grid",
+        gridTemplateColumns: "1.1fr 1fr",
+        background: colors.bg.primary ?? colors.surface.primary,
+      }}
+      className="skillhive-signup-grid"
+    >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap');
-        input:-webkit-autofill {
-          -webkit-box-shadow: 0 0 0 30px #0C0C0C inset;
-          -webkit-text-fill-color: #F0F0EE;
+        @keyframes skillhive-spin { to { transform: rotate(360deg); } }
+        @media (max-width: 900px) {
+          .skillhive-signup-grid { grid-template-columns: 1fr !important; }
+          .skillhive-signup-left { display: none !important; }
         }
       `}</style>
 
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-6 pt-3.5 pb-3">
-        <BackButton onClick={onBack} />
-        <div className="flex items-center gap-1.5">
-          <div className="w-[5px] h-[5px] rounded-full bg-[#E8FF47]" />
-          <span className="text-[9px] tracking-[2.5px] text-[#666664]">
-            AUTH MODULE
-          </span>
-        </div>
-        <div className="w-[34px]" />
-      </div>
-
-      {/* Progress */}
-      <ProgressBar step={progressStep} />
-      <div className="h-px bg-[#1E1E1C] mx-6" />
-
-      {/* Hero */}
-      <div className="flex items-center gap-[18px] px-6 pt-3.5 pb-[18px]">
-        <div className="w-[54px] h-[54px] shrink-0 relative flex items-center justify-center">
-          <div className="absolute w-[62px] h-[62px] rounded-full border border-[#2A2A28]" />
-          <div className="w-[54px] h-[54px] rounded-full border border-[#2A2A28] bg-[#0C0C0C] flex items-center justify-center relative z-10">
-            <span className="font-mono text-xs font-bold text-[#F0F0EE] tracking-[3px]">
-              SH
-            </span>
+      {/* Left: brand panel — matches Sign.tsx */}
+      <div
+        className="skillhive-signup-left"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          padding: spacing.xxxl,
+          borderRight: `1px solid ${colors.border.subtle}`,
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: `radial-gradient(${colors.border.subtle} 1px, transparent 1px)`,
+            backgroundSize: "28px 28px",
+            opacity: 0.4,
+            pointerEvents: "none",
+          }}
+        />
+        <div className="flex flex-col justify-center items-center h-full" style={{ position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: spacing.sm }}>
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: colors.surface.skillhive,
+              }}
+            />
+            <Text
+              variant="label"
+              style={{
+                color: colors.surface.skillhive,
+                textTransform: "uppercase",
+                letterSpacing: 1.5,
+                fontFamily: monoFont,
+              }}
+            >
+              skillhive
+            </Text>
           </div>
-          <div className="absolute top-px right-px w-[9px] h-[9px] rounded-full bg-[#E8FF47] border-2 border-black z-20" />
-        </div>
-        <div>
-          <div className="font-['Bebas_Neue',sans-serif] text-[28px] text-[#F0F0EE] tracking-[1px] leading-[1.1]">
-            Create account
-          </div>
-          <div className="text-[9px] tracking-[2px] text-[#666664] mt-1">
-            JOIN THE SKILLHIIVE NETWORK
-          </div>
-        </div>
-      </div>
-      <div className="h-px bg-[#1E1E1C] mx-6" />
 
-      {/* Form */}
-      <div className="px-6 pt-[18px] flex flex-col gap-3.5">
-        <div className="grid grid-cols-2 gap-3.5">
-          <Field
-            id="displayName"
-            label="Display name"
-            tag="ID"
-            placeholder="Aryan Kapoor"
-            value={values.displayName}
-            onChange={(v) => set("displayName", v)}
-            onBlur={() => touch("displayName")}
-            error={errors.displayName}
-            isValid={fieldIsValid("displayName")}
-            touched={touched.displayName}
-          />
-          <Field
-            id="username"
-            label="Username"
-            tag="@"
-            placeholder="aryankapoor"
-            value={values.username}
-            onChange={(v) => set("username", v)}
-            onBlur={() => touch("username")}
-            error={errors.username}
-            isValid={fieldIsValid("username")}
-            touched={touched.username}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-3.5">
-          <Field
-            id="email"
-            label="Email address"
-            tag="REQ"
-            type="email"
-            placeholder="you@example.com"
-            value={values.email}
-            onChange={(v) => set("email", v)}
-            onBlur={() => touch("email")}
-            error={errors.email}
-            isValid={fieldIsValid("email")}
-            touched={touched.email}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3.5">
-          <Field
-            id="password"
-            label="Password"
-            placeholder="Min 8 characters"
-            value={values.password}
-            onChange={(v) => set("password", v)}
-            onBlur={() => touch("password")}
-            error={errors.password}
-            isValid={fieldIsValid("password")}
-            touched={touched.password}
-            showToggle
-            showEye={showPw}
-            onToggleEye={() => setShowPw((p) => !p)}
+          <Text
+            as="h1"
+            variant="headline"
+            style={{
+              color: colors.text.primary,
+              marginTop: spacing.xxl,
+              lineHeight: `${typography.headline.lineHeight}px`,
+              letterSpacing: typography.headline.letterSpacing,
+              maxWidth: 420,
+            }}
           >
-            <PwMeter password={values.password} />
-          </Field>
-          <Field
-            id="confirm"
-            label="Confirm password"
-            placeholder="Repeat password"
-            value={values.confirm}
-            onChange={(v) => set("confirm", v)}
-            onBlur={() => touch("confirm")}
-            error={errors.confirm}
-            isValid={fieldIsValid("confirm")}
-            touched={touched.confirm}
-            showToggle
-            showEye={showCo}
-            onToggleEye={() => setShowCo((p) => !p)}
-          />
-        </div>
-      </div>
-
-      {/* Submit error */}
-      {submitErr && (
-        <div className="px-6 pt-2.5 text-[9px] text-[#ef4444] tracking-[0.3px]">
-          {submitErr}
-        </div>
-      )}
-
-      {/* CTA */}
-      <div className="px-6 pt-[18px]">
-        <SubmitButton loading={loading} onClick={handleSubmit} />
-      </div>
-
-      {/* Footer */}
-      <div className="px-6 pt-4 flex flex-col gap-3.5">
-        <div className="h-px bg-[#1E1E1C]" />
-        <div className="flex justify-center items-center">
-          <span className="text-[9px] tracking-[1.2px] text-[#666664]">
-            Already have an account?
-          </span>
-          <Link
-            to="/login"
-            className="ml-2 text-xs tracking-widest text-lime-300"
+            Join the network.
+          </Text>
+          <Text
+            variant="bodyLg"
+            style={{
+              display: "block",
+              marginTop: spacing.base,
+              maxWidth: 380,
+              color: colors.text.secondary,
+              lineHeight: 1.6,
+              textAlign: "center",
+            }}
           >
-            Log In
-          </Link>
+            An account here is a seat in the room — no leaderboards, no
+            streaks, just the people you're already building alongside.
+          </Text>
+        </div>
+
+        <div style={{ position: "relative", display: "flex", alignItems: "center", gap: spacing.sm }}>
+          <span
+            style={{
+              width: 9,
+              height: 9,
+              borderRadius: "50%",
+              background: colors.tint.success,
+              opacity: 0.8,
+            }}
+          />
+          <Text variant="caption" style={{ color: colors.text.tertiary, fontFamily: monoFont }}>
+            open source · built in the open
+          </Text>
         </div>
       </div>
 
-      <div className="text-[9px] tracking-[0.2px] text-[#333331] text-center leading-4 px-8 pt-3.5 pb-5">
-        By creating an account you agree to our{" "}
-        <a href="/terms" className="text-[#666664] no-underline">
-          Terms of Service
-        </a>{" "}
-        and{" "}
-        <a href="/privacy" className="text-[#666664] no-underline">
-          Privacy Policy
-        </a>
-        .
+      {/* Right: form */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: spacing.xxl }}>
+        <div style={{ width: "100%", maxWidth: 460 }}>
+          {submitted ? (
+            <SuccessScreen email={values.email.trim()} colors={colors} />
+          ) : (
+            <>
+
+              {/* <ProgressBar step={progressStep} colors={colors} /> */}
+
+              <div style={{ marginTop: spacing.xl, marginBottom: spacing.xl }}>
+                <Text
+                  as="h2"
+                  variant="headline"
+                  style={{
+                    color: colors.text.primary,
+                    lineHeight: `${typography.headline.lineHeight}px`,
+                  }}
+                >
+                  Create account
+                </Text>
+                <Text
+                  variant="caption"
+                  style={{
+                    color: colors.text.tertiary,
+                    fontFamily: monoFont,
+                    letterSpacing: 2,
+                    marginTop: 4,
+                    display: "block",
+                  }}
+                >
+                  JOIN THE SKILLHIVE NETWORK
+                </Text>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: spacing.lg }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: spacing.md }}>
+                  <Field
+                    id="displayName"
+                    label="Display name"
+                    tag="ID"
+                    placeholder="Your Name"
+                    value={values.displayName}
+                    onChange={(v) => set("displayName", v)}
+                    onBlur={() => touch("displayName")}
+                    error={errors.displayName}
+                    isValid={fieldIsValid("displayName")}
+                    touched={touched.displayName}
+                    colors={colors}
+                    radii={radii}
+                  />
+                  <Field
+                    id="username"
+                    label="Username"
+                    tag="@"
+                    placeholder="Your Username"
+                    value={values.username}
+                    onChange={(v) => set("username", v)}
+                    onBlur={() => touch("username")}
+                    error={errors.username}
+                    isValid={fieldIsValid("username")}
+                    touched={touched.username}
+                    colors={colors}
+                    radii={radii}
+                  />
+                </div>
+
+                <Field
+                  id="email"
+                  label="Email address"
+                  tag="REQ"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={values.email}
+                  onChange={(v) => set("email", v)}
+                  onBlur={() => touch("email")}
+                  error={errors.email}
+                  isValid={fieldIsValid("email")}
+                  touched={touched.email}
+                  colors={colors}
+                  radii={radii}
+                />
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: spacing.md }}>
+                  <Field
+                    id="password"
+                    label="Password"
+                    placeholder="Min 8 characters"
+                    value={values.password}
+                    onChange={(v) => set("password", v)}
+                    onBlur={() => touch("password")}
+                    error={errors.password}
+                    isValid={fieldIsValid("password")}
+                    touched={touched.password}
+                    showToggle
+                    showEye={showPw}
+                    onToggleEye={() => setShowPw((p) => !p)}
+                    colors={colors}
+                    radii={radii}
+                  >
+                    <PwMeter password={values.password} colors={colors} />
+                  </Field>
+                  <Field
+                    id="confirm"
+                    label="Confirm password"
+                    placeholder="Repeat password"
+                    value={values.confirm}
+                    onChange={(v) => set("confirm", v)}
+                    onBlur={() => touch("confirm")}
+                    error={errors.confirm}
+                    isValid={fieldIsValid("confirm")}
+                    touched={touched.confirm}
+                    showToggle
+                    showEye={showCo}
+                    onToggleEye={() => setShowCo((p) => !p)}
+                    colors={colors}
+                    radii={radii}
+                  />
+                </div>
+
+                {submitErr && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: spacing.xs,
+                      padding: `${spacing.sm}px ${spacing.base}px`,
+                      borderRadius: radii.md,
+                      border: `1px solid ${colors.tint.danger}`,
+                      background: colors.bg.accentDim ?? colors.surface.secondary,
+                    }}
+                  >
+                    <Text
+                      variant="caption"
+                      style={{ color: colors.tint.danger, fontFamily: monoFont }}
+                    >
+                      {submitErr}
+                    </Text>
+                  </div>
+                )}
+
+                <SubmitButton loading={loading} onClick={handleSubmit} colors={colors} radii={radii} />
+              </div>
+
+              <div
+                style={{
+                  marginTop: spacing.xxl,
+                  paddingTop: spacing.xl,
+                  borderTop: `1px solid ${colors.border.subtle}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text variant="caption" style={{ color: colors.text.tertiary, fontFamily: monoFont }}>
+                  Already have an account?
+                </Text>
+                <Link
+                  to="/login"
+                  className="transition-ui hover:scale-[1.02]"
+                  style={{
+                    color: colors.surface.skillhive,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    fontFamily: monoFont,
+                    letterSpacing: 0.5,
+                    textDecoration: "none",
+                  }}
+                >
+                  Log in
+                </Link>
+              </div>
+
+              <Text
+                variant="caption"
+                style={{
+                  display: "block",
+                  marginTop: spacing.xl,
+                  color: colors.text.tertiary,
+                  opacity: 0.7,
+                  textAlign: "center",
+                }}
+              >
+                By creating an account you agree to our Terms &amp; Privacy Policy.
+              </Text>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

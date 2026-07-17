@@ -73,7 +73,7 @@ export default function Profile() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [uploadingAv, setUploadingAv] = useState(false);
-  const [uploadingBn, setUploadingBn] = useState(false);
+  // const [uploadingBn, setUploadingBn] = useState(false);
 
   const isFetchingMore = useRef(false);
   const avInputRef = useRef<HTMLInputElement>(null);
@@ -145,7 +145,7 @@ export default function Profile() {
   async function uploadImage(file: File, type: "avatar" | "banner") {
     const uid = profile?.id;
     if (!uid) return;
-    type === "avatar" ? setUploadingAv(true) : setUploadingBn(true);
+    type === "avatar" ? setUploadingAv(true) : null;
     try {
       const ext = file.name.split(".").pop() ?? "jpg";
       const path = `${uid}/${type}-${Date.now()}.${ext}`;
@@ -163,7 +163,7 @@ export default function Profile() {
     } catch (e) {
       console.error("Upload failed:", e);
     } finally {
-      type === "avatar" ? setUploadingAv(false) : setUploadingBn(false);
+      type === "avatar" ? setUploadingAv(false) : null;
     }
   }
 
@@ -200,6 +200,7 @@ export default function Profile() {
           fontFamily:
             '"popreg", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
         }}
+        className="flex-col items-center"
       >
         {/* hidden file inputs */}
         <input
@@ -222,12 +223,14 @@ export default function Profile() {
           onClick={() => bnInputRef.current?.click()}
           style={{
             position: "relative",
-            height: 200,
-            width: "100%",
+                        maxWidth: 800,
+            aspectRatio: "1000/350",
             cursor: "pointer",
             overflow: "hidden",
             background: colors.surface.secondary,
+            margin: "0 auto",
           }}
+          className="rounded-b-lg group"
         >
           {profile?.banner ? (
             <img
@@ -252,23 +255,19 @@ export default function Profile() {
             }}
           />
           <div
+            className="opacity-0 group-hover:opacity-100"
             style={{
               position: "absolute",
-              top: 15,
-              right: 12,
-              padding: 10,
-              borderRadius: 8,
-              background: colors.bg.accentDim,
+              inset: 0,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              background: "rgba(0,0,0,0.45)",
+              transition: "opacity 150ms ease",
+              pointerEvents: "none",
             }}
           >
-            {uploadingBn ? (
-              <MiniSpin />
-            ) : (
-              <Pen size={12} color={colors.text.skillhive} />
-            )}
+            <Pen size={20} color="#fff" />
           </div>
         </div>
 
@@ -311,6 +310,7 @@ export default function Profile() {
               <div
                 onClick={() => avInputRef.current?.click()}
                 style={{ position: "relative", cursor: "pointer" }}
+                className="group"
               >
                 <div
                   style={{
@@ -355,6 +355,21 @@ export default function Profile() {
                       <MiniSpin light />
                     </div>
                   )}
+                  <div
+                    className="opacity-0 group-hover:opacity-100 rounded-full"
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "rgba(0,0,0,0.45)",
+                      transition: "opacity 150ms ease",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    <Pen size={18} color="#fff" />
+                  </div>
                 </div>
               </div>
             </div>

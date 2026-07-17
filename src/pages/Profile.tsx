@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { useNavigate } from "react-router";
 import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/hooks/profileContext";
@@ -10,6 +16,9 @@ import {
   Sun,
   Moon,
   Monitor,
+  Upload,
+  X,
+  Check,
 } from "lucide-react";
 import SwipeLayout from "@/components/SwipeLayout";
 import { Button, Text } from "@/components/ui";
@@ -56,6 +65,12 @@ const FEED_QUERY = `
   )
 `;
 
+// avatar: 1:1 · banner: 1000/350
+const ASPECT_RATIOS: Record<"avatar" | "banner", number> = {
+  avatar: 1,
+  banner: 1000 / 350,
+};
+
 // ─────────────────────────────────────────
 // PROFILE PAGE
 // ─────────────────────────────────────────
@@ -73,7 +88,11 @@ export default function Profile() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [uploadingAv, setUploadingAv] = useState(false);
-  // const [uploadingBn, setUploadingBn] = useState(false);
+  const [uploadingBn, setUploadingBn] = useState(false);
+
+  // ── crop dialog state ──
+  const [cropType, setCropType] = useState<"avatar" | "banner" | null>(null);
+  const [cropPickedFile, setCropPickedFile] = useState<File | null>(null);
 
   const isFetchingMore = useRef(false);
   const avInputRef = useRef<HTMLInputElement>(null);
@@ -141,17 +160,16 @@ export default function Profile() {
     if (profile?.id) void fetchUserPosts();
   }, [profile?.id, fetchUserPosts]);
 
-  // ── image upload ──
-  async function uploadImage(file: File, type: "avatar" | "banner") {
+  // ── image upload (now receives an already-cropped blob) ──
+  async function uploadImage(blob: Blob, type: "avatar" | "banner") {
     const uid = profile?.id;
     if (!uid) return;
-    type === "avatar" ? setUploadingAv(true) : null;
+    type === "avatar" ? setUploadingAv(true) : setUploadingBn(true);
     try {
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `${uid}/${type}-${Date.now()}.${ext}`;
+      const path = `${uid}/${type}-${Date.now()}.jpg`;
       const { data, error: uploadErr } = await supabase.storage
         .from("profile-images")
-        .upload(path, file, { contentType: file.type, upsert: true });
+        .upload(path, blob, { contentType: "image/jpeg", upsert: true });
       if (uploadErr) throw uploadErr;
       const { data: urlData } = supabase.storage
         .from("profile-images")
@@ -163,7 +181,7 @@ export default function Profile() {
     } catch (e) {
       console.error("Upload failed:", e);
     } finally {
-      type === "avatar" ? setUploadingAv(false) : null;
+      type === "avatar" ? setUploadingAv(false) : setUploadingBn(false);
     }
   }
 
@@ -172,8 +190,12 @@ export default function Profile() {
     type: "avatar" | "banner",
   ) {
     const file = e.target.files?.[0];
-    if (file) void uploadImage(file, type);
     e.target.value = "";
+    if (!file) return;
+    // Route the picked file into the crop dialog instead of uploading
+    // straight away — the dialog owns the final upload.
+    setCropType(type);
+    setCropPickedFile(file);
   }
 
   async function handleSignOut() {
@@ -202,7 +224,7 @@ export default function Profile() {
         }}
         className="flex-col items-center"
       >
-        {/* hidden file inputs */}
+        {/* hidden file inputs — still used to open the OS file picker */}
         <input
           ref={bnInputRef}
           type="file"
@@ -218,9 +240,29 @@ export default function Profile() {
           onChange={(e) => handleFileChange(e, "avatar")}
         />
 
+        {/* crop dialog — opens as soon as a type is selected for editing */}
+        {cropType && (
+          <ImageCropDialog
+            type={cropType}
+            initialFile={cropPickedFile}
+            onRequestFile={() =>
+              (cropType === "avatar" ? avInputRef : bnInputRef).current?.click()
+            }
+            onClose={() => {
+              setCropType(null);
+              setCropPickedFile(null);
+            }}
+            onConfirm={async (blob) => {
+              await uploadImage(blob, cropType);
+              setCropType(null);
+              setCropPickedFile(null);
+            }}
+          />
+        )}
+
         {/* ── BANNER ── */}
         <div
-          onClick={() => bnInputRef.current?.click()}
+          onClick={() => setCropType("banner")}
           style={{
             position: "relative",
                         maxWidth: 800,
@@ -269,6 +311,20 @@ export default function Profile() {
           >
             <Pen size={20} color="#fff" />
           </div>
+          {uploadingBn && (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "rgba(0,0,0,0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <MiniSpin light />
+            </div>
+          )}
         </div>
 
         {/* ── CARD ── */}
@@ -308,7 +364,7 @@ export default function Profile() {
               className="w-fit"
             >
               <div
-                onClick={() => avInputRef.current?.click()}
+                onClick={() => setCropType("avatar")}
                 style={{ position: "relative", cursor: "pointer" }}
                 className="group"
               >
@@ -323,6 +379,7 @@ export default function Profile() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    position: "relative",
                   }}
                 >
                   {profile?.avatar ? (
@@ -641,6 +698,445 @@ export default function Profile() {
         </div>
       </div>
     </SwipeLayout>
+  );
+}
+
+// ─────────────────────────────────────────
+// CROP DIALOG
+// ─────────────────────────────────────────
+// A self-contained upload → crop → confirm flow. No external cropping
+// library — a fixed-aspect box the user can drag and resize (by its
+// corners) over the image, rendered to a canvas on confirm.
+
+interface CropBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+function ImageCropDialog({
+  type,
+  initialFile,
+  onRequestFile,
+  onClose,
+  onConfirm,
+}: {
+  type: "avatar" | "banner";
+  initialFile: File | null;
+  onRequestFile: () => void;
+  onClose: () => void;
+  onConfirm: (blob: Blob) => Promise<void>;
+}) {
+  const { colors, spacing, radii } = useTokens();
+  const aspect = ASPECT_RATIOS[type];
+
+  const [imgSrc, setImgSrc] = useState<string | null>(null);
+  const [imgNaturalSize, setImgNaturalSize] = useState({ w: 0, h: 0 });
+  const [box, setBox] = useState<CropBox | null>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  const frameRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const dragState = useRef<{
+    mode: "move" | "resize";
+    corner?: "tl" | "tr" | "bl" | "br";
+    startX: number;
+    startY: number;
+    startBox: CropBox;
+  } | null>(null);
+
+  const previewH = 340;
+
+  // load the initially-picked file as soon as the dialog mounts
+  useEffect(() => {
+    if (initialFile) {
+      const url = URL.createObjectURL(initialFile);
+      setImgSrc(url);
+      return () => URL.revokeObjectURL(url);
+    }
+  }, [initialFile]);
+
+  function handleImgLoad() {
+    const img = imgRef.current;
+    if (!img) return;
+    setImgNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+
+    const rect = img.getBoundingClientRect();
+    // default crop box: as large as possible at the target aspect,
+    // centered on the displayed image
+    let w = rect.width;
+    let h = w / aspect;
+    if (h > rect.height) {
+      h = rect.height;
+      w = h * aspect;
+    }
+    setBox({
+      x: (rect.width - w) / 2,
+      y: (rect.height - h) / 2,
+      w,
+      h,
+    });
+  }
+
+  const clampBox = useCallback((b: CropBox): CropBox => {
+    const frame = imgRef.current?.getBoundingClientRect();
+    if (!frame) return b;
+    let { x, y, w, h } = b;
+    w = Math.min(w, frame.width);
+    h = Math.min(h, frame.height);
+    x = Math.max(0, Math.min(x, frame.width - w));
+    y = Math.max(0, Math.min(y, frame.height - h));
+    return { x, y, w, h };
+  }, []);
+
+  function onBoxPointerDown(
+    e: ReactPointerEvent,
+    mode: "move" | "resize",
+    corner?: "tl" | "tr" | "bl" | "br",
+  ) {
+    if (!box) return;
+    e.stopPropagation();
+    (e.target as Element).setPointerCapture(e.pointerId);
+    dragState.current = {
+      mode,
+      corner,
+      startX: e.clientX,
+      startY: e.clientY,
+      startBox: box,
+    };
+  }
+
+  function onPointerMove(e: ReactPointerEvent) {
+    const drag = dragState.current;
+    if (!drag || !box) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+
+    if (drag.mode === "move") {
+      setBox(
+        clampBox({
+          ...drag.startBox,
+          x: drag.startBox.x + dx,
+          y: drag.startBox.y + dy,
+        }),
+      );
+      return;
+    }
+
+    // resize: scale from the opposite corner, preserving aspect ratio
+    const { x, y, w, h } = drag.startBox;
+    let newW = w;
+    switch (drag.corner) {
+      case "br":
+        newW = w + dx;
+        break;
+      case "bl":
+        newW = w - dx;
+        break;
+      case "tr":
+        newW = w + dx;
+        break;
+      case "tl":
+        newW = w - dx;
+        break;
+    }
+    newW = Math.max(40, newW);
+    const newH = newW / aspect;
+
+    let newX = x;
+    let newY = y;
+    if (drag.corner === "tl") {
+      newX = x + (w - newW);
+      newY = y + (h - newH);
+    } else if (drag.corner === "tr") {
+      newY = y + (h - newH);
+    } else if (drag.corner === "bl") {
+      newX = x + (w - newW);
+    }
+    // "br" keeps x/y as-is
+
+    setBox(clampBox({ x: newX, y: newY, w: newW, h: newH }));
+  }
+
+  function onPointerUp() {
+    dragState.current = null;
+  }
+
+  async function handleConfirm() {
+    if (!box || !imgRef.current) return;
+    setConfirming(true);
+    try {
+      const img = imgRef.current;
+      const rect = img.getBoundingClientRect();
+      const scaleX = imgNaturalSize.w / rect.width;
+      const scaleY = imgNaturalSize.h / rect.height;
+
+      const outW = type === "avatar" ? 512 : 1000;
+      const outH = Math.round(outW / aspect);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = outW;
+      canvas.height = outH;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.drawImage(
+        img,
+        box.x * scaleX,
+        box.y * scaleY,
+        box.w * scaleX,
+        box.h * scaleY,
+        0,
+        0,
+        outW,
+        outH,
+      );
+
+      const blob: Blob | null = await new Promise((resolve) =>
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.92),
+      );
+      if (blob) await onConfirm(blob);
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  const handleSize = 12;
+  const corners: {
+    key: "tl" | "tr" | "bl" | "br";
+    style: React.CSSProperties;
+  }[] = [
+    {
+      key: "tl",
+      style: { top: -handleSize / 2, left: -handleSize / 2, cursor: "nwse-resize" },
+    },
+    {
+      key: "tr",
+      style: { top: -handleSize / 2, right: -handleSize / 2, cursor: "nesw-resize" },
+    },
+    {
+      key: "bl",
+      style: { bottom: -handleSize / 2, left: -handleSize / 2, cursor: "nesw-resize" },
+    },
+    {
+      key: "br",
+      style: { bottom: -handleSize / 2, right: -handleSize / 2, cursor: "nwse-resize" },
+    },
+  ];
+
+  // translate offset so the overlay/box line up with the image, which is
+  // centered inside the (larger) preview frame via flex alignment
+  function imgOffset() {
+    const img = imgRef.current;
+    const frame = frameRef.current;
+    if (!img || !frame) return { x: 0, y: 0 };
+    const imgRect = img.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    return { x: imgRect.left - frameRect.left, y: imgRect.top - frameRect.top };
+  }
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(0,0,0,0.65)",
+        padding: spacing.lg,
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%",
+          maxWidth: 520,
+          background: colors.bg.muted,
+          border: `1px solid ${colors.border.subtle}`,
+          borderRadius: radii.lg,
+          padding: spacing.lg,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: spacing.base,
+          }}
+        >
+          <Text variant="subtitle" weight={800}>
+            {type === "avatar" ? "Update avatar" : "Update banner"}
+          </Text>
+          <button
+            onClick={onClose}
+            style={{
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              display: "flex",
+              padding: 4,
+            }}
+          >
+            <X size={18} color={colors.text.tertiary} />
+          </button>
+        </div>
+
+        {!imgSrc ? (
+          // ── step 1: pick a file ──
+          <div
+            style={{
+              border: `1px dashed ${colors.border.subtle}`,
+              borderRadius: radii.md,
+              padding: `${spacing.xxl}px ${spacing.lg}px`,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: spacing.md,
+            }}
+          >
+            <Text variant="bodySm" tone="secondary" align="center">
+              {type === "avatar"
+                ? "Square image, cropped to 1:1"
+                : "Wide image, cropped to 1000:350"}
+            </Text>
+            <Button
+              label="Choose photo"
+              icon={<Upload size={14} />}
+              variant="primary"
+              onClick={onRequestFile}
+            />
+          </div>
+        ) : (
+          // ── step 2: crop ──
+          <>
+            <div
+              ref={frameRef}
+              style={{
+                position: "relative",
+                width: "100%",
+                height: previewH,
+                background: "#000",
+                borderRadius: radii.md,
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                touchAction: "none",
+              }}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+            >
+              <img
+                ref={imgRef}
+                src={imgSrc}
+                onLoad={handleImgLoad}
+                alt="Selected upload"
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  display: "block",
+                  userSelect: "none",
+                }}
+                draggable={false}
+              />
+
+              {box &&
+                (() => {
+                  const offset = imgOffset();
+                  return (
+                    <>
+                      {/* dim everything outside the crop box */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: 0,
+                          top: 0,
+                          right: 0,
+                          bottom: 0,
+                          boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)",
+                          clipPath: `polygon(
+                            0 0, 100% 0, 100% 100%, 0 100%, 0 0,
+                            ${box.x}px ${box.y}px,
+                            ${box.x}px ${box.y + box.h}px,
+                            ${box.x + box.w}px ${box.y + box.h}px,
+                            ${box.x + box.w}px ${box.y}px,
+                            ${box.x}px ${box.y}px
+                          )`,
+                          transform: `translate(${offset.x}px, ${offset.y}px)`,
+                          pointerEvents: "none",
+                        }}
+                      />
+
+                      {/* draggable crop box */}
+                      <div
+                        onPointerDown={(e) => onBoxPointerDown(e, "move")}
+                        style={{
+                          position: "absolute",
+                          left: box.x,
+                          top: box.y,
+                          width: box.w,
+                          height: box.h,
+                          border: `2px solid ${colors.surface.skillhive}`,
+                          cursor: "grab",
+                          transform: `translate(${offset.x}px, ${offset.y}px)`,
+                        }}
+                      >
+                        {corners.map((c) => (
+                          <div
+                            key={c.key}
+                            onPointerDown={(e) =>
+                              onBoxPointerDown(e, "resize", c.key)
+                            }
+                            style={{
+                              position: "absolute",
+                              width: handleSize,
+                              height: handleSize,
+                              borderRadius: type === "avatar" ? "50%" : 2,
+                              background: colors.surface.skillhive,
+                              ...c.style,
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
+            </div>
+
+            <Text
+              variant="caption"
+              tone="tertiary"
+              style={{ display: "block", marginTop: spacing.sm }}
+            >
+              Drag to reposition, use the corner handles to resize.
+            </Text>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: spacing.sm,
+                marginTop: spacing.lg,
+              }}
+            >
+              <Button label="Cancel" variant="secondary" onClick={onClose} />
+              <Button
+                label={confirming ? "Uploading…" : "Confirm"}
+                icon={<Check size={14} />}
+                variant="primary"
+                disabled={confirming}
+                onClick={() => void handleConfirm()}
+              />
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

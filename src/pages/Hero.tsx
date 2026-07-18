@@ -1,4 +1,4 @@
-import HUD from "@/components/HUD";
+// import HUD from "@/components/HUD";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import shVid from "@/assets/sh.mp4";

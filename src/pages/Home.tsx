@@ -60,7 +60,7 @@ function NewRoomModal({
             position: "fixed",
             inset: 0,
             background: colors.overlay.scrim,
-            zIndex: 1200,
+            zIndex: 1000,
             display: "flex",
             alignItems: "flex-end",
             justifyContent: "center",

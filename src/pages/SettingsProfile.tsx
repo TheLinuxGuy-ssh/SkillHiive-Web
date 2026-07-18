@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import {
-  ChevronLeft,
   ChevronRight,
   Mail,
   User,
   Type,
   Edit3,
   X,
+  ArrowLeft,
 } from "lucide-react";
 import SwipeLayout from "@/components/SwipeLayout";
-import { Text } from "@/components/ui";
+import { IconButton, Text } from "@/components/ui";
 import { useProfile, type Profile } from "@/hooks/profileContext";
 import { useTokens } from "@/theme";
 
@@ -117,24 +117,9 @@ export default function SettingsProfile() {
               margin: `${spacing.sm}px 0 ${spacing.xl}px`,
             }}
           >
-            <button
-              onClick={() => navigate(-1)}
-              aria-label="Back"
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                border: `1px solid ${colors.border.subtle}`,
-                background: colors.surface.primary,
-                color: colors.text.primary,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-              }}
-            >
-              <ChevronLeft size={18} />
-            </button>
+            <IconButton variant="primary" onClick={() => navigate(-1)} aria-label="Back">
+              <ArrowLeft size={22} strokeWidth={2} />
+            </IconButton>
             <Text variant="subtitle" weight={800}>
               Profile Edit
             </Text>
@@ -251,7 +236,7 @@ export default function SettingsProfile() {
             position: "fixed",
             inset: 0,
             background: colors.overlay.scrim,
-            zIndex: 1300,
+            zIndex: 100,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",

@@ -120,7 +120,7 @@ export default function NotificationBell() {
               border: `1px solid ${colors.border.subtle}`,
               borderRadius: radii.xl,
               boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
-              zIndex: 1200,
+              zIndex: 1000,
               fontFamily: '"popreg", system-ui, -apple-system, sans-serif',
             }}
           >

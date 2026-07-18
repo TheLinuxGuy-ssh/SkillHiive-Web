@@ -77,7 +77,7 @@ export default function Hero() {
       <div className="noise" aria-hidden="true" />
       <main>
         <section className="hero relative min-h-dvh">
-          <video className="absolute top-0 left-0 w-full object-cover opacity-100 flip scale-x-100" src={shVid} autoPlay muted loop />
+          <video className="absolute top-0 left-0 min-h-dvh object-cover opacity-100 flip scale-x-100" src={shVid} autoPlay muted loop playsinline />
           <div className="absolute inset-0 z-10 h-full pointer-events-none bg-[radial-gradient(circle,_transparent_20%,_rgba(0,0,0,0.85)_100%)]"></div>
 
           <div

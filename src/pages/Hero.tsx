@@ -1,7 +1,7 @@
-
 import HUD from "@/components/HUD";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
+import shVid from "@/assets/sh.mp4";
 
 export default function Hero() {
   const [easterVisible, setEasterVisible] = useState(false);
@@ -76,28 +76,27 @@ export default function Hero() {
     <>
       <div className="noise" aria-hidden="true" />
       <main>
-        <section className="hero">
-          <div className="hero-content">
-            <div className="hero-cell px-10">
-              <div className="hero-meta">
-                <div className="status-dot"></div>
-                <span className="reveal-text">FROM THE PEACEFUL INTERNET</span>
-              </div>
+        <section className="hero relative min-h-dvh">
+          <video className="absolute top-0 left-0 w-full object-cover opacity-100 flip scale-x-100" src={shVid} autoPlay muted loop />
+          <div className="absolute inset-0 z-10 h-full pointer-events-none bg-[radial-gradient(circle,_transparent_20%,_rgba(0,0,0,0.85)_100%)]"></div>
 
-              <h1 className="hero-title">
-                <span className="title-seg reveal-line" data-delay="0">
-                  SkillHiive
-                </span>
-              </h1>
-
-              <p className="hero-sub reveal-text" data-delay="500">
-                No algorithms. No performance system. <br />
-                Just real people, real connections, real work.
-                <br />
-                Without burnouts
-              </p>
-
-              <div
+          <div
+            className="hero-manifesto reveal-item !z-40"
+            data-delay="600"
+            aria-hidden="false"
+          >
+            <div className="hero-manifesto-glyph" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
+            <ul className="hero-manifesto-lines">
+              <li className="reveal-line" data-delay="700">No algorithms</li>
+              <li className="reveal-line" data-delay="850">No leaderboards</li>
+              <li className="reveal-line" data-delay="1000">No performance to keep up</li>
+            </ul>
+            <span className="hero-manifesto-foot">— built for the work, not the feed</span>
+                          <div
                 className="ticket-zone reveal-text hover:scale-[1.025] transition-ui"
                 data-delay="700"
               >
@@ -108,15 +107,29 @@ export default function Hero() {
                   onMouseLeave={resetCta}
                   onClick={() => navigate("/register")}
                 >
-                  <span className="btn-text">JOIN OUR HOME</span>
+                  <span className="btn-text">JOIN US</span>
                   <span className="btn-arrow">→</span>
                 </button>
               </div>
-            </div>
+          </div>
 
-            <div className="hero-cell" data-delay="400">
-              <HUD />
+          <div className="hero-content !z-20">
+
+            <div className="hero-cell justify-end px-2 h-full">
+              <div className="hero-meta">
+                <div className="status-dot"></div>
+                <span className="reveal-text">FROM THE PEACEFUL INTERNET</span>
+              </div>
+
+              <h1 className="hero-title">
+                <span className="title-seg reveal-line mix-blend-screen" data-delay="0">
+                  SkillHiive
+                </span>
+              </h1>
             </div>
+            {/* <div className="hero-cell" data-delay="400">
+              <HUD />
+            </div> */}
           </div>
 
           <div className="scroll-hint reveal-text" data-delay="900">

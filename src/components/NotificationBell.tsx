@@ -52,6 +52,7 @@ export default function NotificationBell() {
         onClick={() => setOpen((o) => !o)}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
+        className="transition-ui hover:scale-[1.025] active:scale-[1]"
         style={{
           position: "relative",
           width: 44,

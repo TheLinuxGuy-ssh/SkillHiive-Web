@@ -8,6 +8,7 @@ import Cursor from "./components/Cursor";
 import { AuthGate } from "./components/AuthGate";
 import { ProfileProvider } from "./hooks/profileContext";
 import { supabase } from "./lib/supabase";
+import Lenis from 'lenis'
 
 const ROUTE_ORDER = ["/", "/learn", "/profile"];
 
@@ -24,6 +25,14 @@ function AnimatedRoutes() {
       setPrevIndex(currentIndex);
     }
   }, [location.pathname, prevIndex]);
+
+const lenis = new Lenis({
+  autoRaf: true,
+});
+
+lenis.on('scroll', (e) => {
+  console.log(e);
+});
 
   return (
     <ProfileProvider>

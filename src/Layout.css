@@ -898,7 +898,7 @@ footer {
   }
 
   .hero-title {
-    font-size: clamp(5rem, 22vw, 8rem);
+    font-size: clamp(4.5rem, 4vw, 4rem);
   }
 
   .ticket-zone {
@@ -911,10 +911,6 @@ footer {
   .manifesto,
   .location-tease {
     padding: 5rem 1.5rem;
-  }
-
-  .scroll-hint {
-    left: 1.5rem;
   }
 
   footer {

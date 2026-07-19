@@ -347,11 +347,10 @@ export function OpenSource() {
         {/* Hero */}
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "1.1fr 1fr",
             gap: spacing.xxxl,
             alignItems: "center",
           }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2"
         >
           <div>
             <Text
@@ -434,7 +433,7 @@ export function OpenSource() {
           </div>
 
           {/* Signature: cross-repo activity log */}
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <div className="flex justify-center">
             <div
               className="transition-ui "
               style={{
@@ -593,9 +592,9 @@ export function OpenSource() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
               gap: spacing.md,
             }}
+            className="grid-cols-1 sm:grid-cols-2 md:grid-col-3 lg:grid-cols-3"
           >
             {repos.map((repo) => (
               <a
@@ -751,9 +750,9 @@ export function OpenSource() {
             Why the code is public
           </Text>
           <div
+          className="grid-cols-1 md:lg-grid-col-3 lg:grid-cols-3"
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
               gap: 1,
               background: colors.border.subtle,
               borderRadius: radii.lg,
@@ -800,9 +799,9 @@ export function OpenSource() {
           style={{
             marginTop: spacing.xxxl,
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
             gap: spacing.xxl,
           }}
+          className="grid-cols-1 md:lg-grid-col-2 lg:grid-cols-2"
         >
           <div>
             <Text variant="label" style={sectionLabel}>

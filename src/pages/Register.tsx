@@ -4,8 +4,6 @@ import { supabase } from "@/lib/supabase";
 import { useTokens } from "@/theme";
 import { Text } from "@/components/ui";
 
-/* ---------------------------------- Types --------------------------------- */
-
 type FieldId = "displayName" | "username" | "email" | "password" | "confirm";
 
 interface FormValues {
@@ -25,8 +23,6 @@ export interface SignUpScreenProps {
 }
 
 type Tokens = ReturnType<typeof useTokens>;
-
-/* -------------------------------- Validation ------------------------------- */
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -71,13 +67,7 @@ const PW_LABEL_TEXT: Record<number, string> = {
   4: "Strong",
 };
 
-const monoFont =
-  'ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace';
-
-/* -------------------------------- Progress bar ------------------------------ */
-
-
-/* ----------------------------------- Field ---------------------------------- */
+const monoFont = 'ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace';
 
 interface FieldProps {
   id: FieldId;
@@ -293,11 +283,6 @@ function PwMeter({ password, colors }: { password: string; colors: Tokens["color
   );
 }
 
-/* -------------------------------- Back button -------------------------------- */
-
-
-/* -------------------------------- Submit button ------------------------------- */
-
 function SubmitButton({
   loading,
   onClick,
@@ -358,8 +343,6 @@ function SubmitButton({
   );
 }
 
-/* -------------------------------- Success screen ------------------------------ */
-
 function SuccessScreen({ email, colors }: { email: string; colors: Tokens["colors"] }) {
   return (
     <div
@@ -406,8 +389,6 @@ function SuccessScreen({ email, colors }: { email: string; colors: Tokens["color
     </div>
   );
 }
-
-/* ---------------------------------- Main ------------------------------------ */
 
 const ALL_FIELDS: FieldId[] = ["displayName", "username", "email", "password", "confirm"];
 
@@ -495,9 +476,9 @@ export default function SignUpScreen({ onSubmit }: SignUpScreenProps) {
         width: "100%",
         display: "grid",
         gridTemplateColumns: "1.1fr 1fr",
-        background: colors.bg.primary ?? colors.surface.primary,
+
       }}
-      className="skillhive-signup-grid"
+      className="skillhive-signup-grid relative"
     >
       <style>{`
         @keyframes skillhive-spin { to { transform: rotate(360deg); } }
@@ -506,8 +487,6 @@ export default function SignUpScreen({ onSubmit }: SignUpScreenProps) {
           .skillhive-signup-left { display: none !important; }
         }
       `}</style>
-
-      {/* Left: brand panel — matches Sign.tsx */}
       <div
         className="skillhive-signup-left"
         style={{
@@ -530,8 +509,8 @@ export default function SignUpScreen({ onSubmit }: SignUpScreenProps) {
             pointerEvents: "none",
           }}
         />
-        <div className="flex flex-col justify-center items-center h-full" style={{ position: "relative" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: spacing.sm }}>
+        <div className="flex flex-col justify-start items-start h-full" style={{ position: "relative" }}>
+          <div className="mt-[20%]" style={{ display: "flex", alignItems: "center", gap: spacing.sm }}>
             <span
               style={{
                 width: 6,
@@ -549,7 +528,7 @@ export default function SignUpScreen({ onSubmit }: SignUpScreenProps) {
                 fontFamily: monoFont,
               }}
             >
-              skillhive
+              skillhiive
             </Text>
           </div>
 
@@ -574,7 +553,7 @@ export default function SignUpScreen({ onSubmit }: SignUpScreenProps) {
               maxWidth: 380,
               color: colors.text.secondary,
               lineHeight: 1.6,
-              textAlign: "center",
+
             }}
           >
             An account here is a seat in the room — no leaderboards, no
@@ -605,33 +584,6 @@ export default function SignUpScreen({ onSubmit }: SignUpScreenProps) {
             <SuccessScreen email={values.email.trim()} colors={colors} />
           ) : (
             <>
-
-              {/* <ProgressBar step={progressStep} colors={colors} /> */}
-
-              <div style={{ marginTop: spacing.xl, marginBottom: spacing.xl }}>
-                <Text
-                  as="h2"
-                  variant="headline"
-                  style={{
-                    color: colors.text.primary,
-                    lineHeight: `${typography.headline.lineHeight}px`,
-                  }}
-                >
-                  Create account
-                </Text>
-                <Text
-                  variant="caption"
-                  style={{
-                    color: colors.text.tertiary,
-                    fontFamily: monoFont,
-                    letterSpacing: 2,
-                    marginTop: 4,
-                    display: "block",
-                  }}
-                >
-                  JOIN THE SKILLHIVE NETWORK
-                </Text>
-              </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: spacing.lg }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: spacing.md }}>

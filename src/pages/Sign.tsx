@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router";
 import { supabase } from "@/lib/supabase";
 import { useTokens } from "@/theme";
 import { Text } from "@/components/ui";
+import peace from "@/assets/sign.mp4"
+import { Button } from "@headlessui/react";
 
 function ArrowUpRight({ size = 13, color }: { size?: number; color: string }) {
   return (
@@ -60,6 +62,9 @@ export default function Sign() {
 
     if (!email || !password) {
       setError("Please enter your email and password.");
+      setTimeout(() => {
+        setError(null);
+      }, 5000)
       return;
     }
 
@@ -111,121 +116,12 @@ export default function Sign() {
     <div
       style={{
         minHeight: "100vh",
-        width: "100%",
-        display: "grid",
-        gridTemplateColumns: "1.1fr 1fr",
-        background: colors.bg.primary ?? colors.surface.primary,
+        width: "100%"
       }}
-      className="skillhive-sign-grid"
+      className="skillhive-sign-grid relative flex items-end justify-start"
     >
-      {/* Left: brand / activity panel — mirrors the OpenSource hero card */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          padding: spacing.xxxl,
-          borderRight: `1px solid ${colors.border.subtle}`,
-          position: "relative",
-          overflow: "hidden",
-        }}
-        className="skillhive-sign-left"
-      >
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            backgroundImage: `radial-gradient(${colors.border.subtle} 1px, transparent 1px)`,
-            backgroundSize: "28px 28px",
-            opacity: 0.4,
-            pointerEvents: "none",
-          }}
-        />
+      <video src={peace} className="absolute top-0 -scale-x-100 left-0 object-cover min-h-dvh -z-1" playsInline muted autoPlay loop></video>
 
-        <div className="flex-col h-full w-full content-center justify-center items-center" style={{ position: "relative" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: spacing.sm,
-            }}
-          >
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: colors.surface.skillhive,
-              }}
-            />
-            <Text
-              variant="label"
-              style={{
-                color: colors.surface.skillhive,
-                textTransform: "uppercase",
-                letterSpacing: 1.5,
-                fontFamily: monoFont,
-              }}
-            >
-              skillhive
-            </Text>
-          </div>
-
-          <Text
-            as="h1"
-            variant="headline"
-            style={{
-              color: colors.text.primary,
-              marginTop: spacing.xxl,
-              lineHeight: `${typography.headline.lineHeight}px`,
-              letterSpacing: typography.headline.letterSpacing,
-              maxWidth: 420,
-            }}
-          >
-            A place to work.
-          </Text>
-          <Text
-            variant="bodyLg"
-            style={{
-              display: "block",
-              marginTop: spacing.base,
-              maxWidth: 380,
-              color: colors.text.secondary,
-              lineHeight: 1.6,
-            }}
-          >
-            Ambient co-presence for developers — no leaderboards, no
-            streaks, just the room you're already working in.
-          </Text>
-        </div>
-
-        <div
-          style={{
-            position: "relative",
-            display: "flex",
-            alignItems: "center",
-            gap: spacing.sm,
-          }}
-        >
-          <span
-            style={{
-              width: 9,
-              height: 9,
-              borderRadius: "50%",
-              background: colors.tint.success,
-              opacity: 0.8,
-            }}
-          />
-          <Text
-            variant="caption"
-            style={{ color: colors.text.tertiary, fontFamily: monoFont }}
-          >
-            open source · built in the open
-          </Text>
-        </div>
-      </div>
-
-      {/* Right: auth form */}
       <div
         style={{
           display: "flex",
@@ -233,15 +129,14 @@ export default function Sign() {
           justifyContent: "center",
           padding: spacing.xxl,
         }}
+        className="w-full"
       >
-        <div style={{ width: "100%", maxWidth: 380 }}>
-          <div style={{ marginBottom: spacing.xxl }}>
-            <Text variant="label" style={sectionLabel}>
-              identity verification required
-            </Text>
+        <div className="flex-col sm:block items-center justify-start w-[90%] lg:w-[50%]">
+          {/* <div style={{ marginBottom: spacing.xxl }}>
             <Text
               as="h2"
               variant="headline"
+              className="text-center mix-blend-color-burn"
               style={{
                 color: colors.text.primary,
                 marginTop: spacing.sm,
@@ -250,14 +145,15 @@ export default function Sign() {
             >
               Sign in
             </Text>
-          </div>
+          </div> */}
 
           <form
             onSubmit={handleLogin}
-            style={{ display: "flex", flexDirection: "column", gap: spacing.lg }}
+            style={{ gap: spacing.lg }}
+            className="block md:flex lg:flex xl:flex"
           >
-            <div>
-              <Text
+            <div className="flex-col w-full my-2">
+              {/* <Text
                 variant="label"
                 style={{
                   ...sectionLabel,
@@ -266,7 +162,7 @@ export default function Sign() {
                 }}
               >
                 Email address
-              </Text>
+              </Text> */}
               <input
                 type="email"
                 placeholder="you@example.com"
@@ -279,19 +175,17 @@ export default function Sign() {
               />
             </div>
 
-            <div>
+            <div className="flex-col justify-center items-center w-full my-2">
               <div
                 style={{
                   display: "flex",
-                  alignItems: "baseline",
-                  justifyContent: "space-between",
-                  marginBottom: spacing.xs,
+                  alignItems: "center",
                 }}
               >
-                <Text variant="label" style={sectionLabel}>
+                {/* <Text variant="label" style={sectionLabel}>
                   Password
-                </Text>
-                <button
+                </Text> */}
+                {/* <button
                   type="button"
                   style={{
                     background: "none",
@@ -306,7 +200,7 @@ export default function Sign() {
                   className="transition-ui hover:!text-white"
                 >
                   Forgot access?
-                </button>
+                </button> */}
               </div>
               <input
                 type="password"
@@ -331,6 +225,7 @@ export default function Sign() {
                   border: `1px solid ${colors.tint.danger}`,
                   background: colors.bg.accentDim ?? colors.surface.secondary,
                 }}
+                className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
               >
                 <Text
                   variant="caption"
@@ -340,7 +235,7 @@ export default function Sign() {
                 </Text>
               </div>
             )}
-
+            <div className="flex items-end justify-center w-full lg:w-[25em] md:w-[25em] xl:w-[25em] my-1">
             <button
               type="submit"
               disabled={loading}
@@ -376,13 +271,12 @@ export default function Sign() {
                 </>
               )}
             </button>
+            </div>
           </form>
 
           <div
             style={{
-              marginTop: spacing.xxl,
-              paddingTop: spacing.xl,
-              borderTop: `1px solid ${colors.border.subtle}`,
+              marginTop: spacing.sm,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -416,7 +310,7 @@ export default function Sign() {
             variant="caption"
             style={{
               display: "block",
-              marginTop: spacing.xl,
+              marginTop: spacing.xxl,
               color: colors.text.tertiary,
               opacity: 0.7,
               textAlign: "center",
